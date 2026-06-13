@@ -22,8 +22,6 @@ export class UserModel {
 
    @Field(() => Date)
    public lastSeenAt: Date;
-   @Field(() => String)
-   public publicKey: string;
 
    @Field(() => Boolean)
    public isVerified: boolean;
