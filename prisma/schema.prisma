@@ -25,8 +25,7 @@ model User {
   bio    String?
   // status String?
 
-  lastSeenAt DateTime @map("last_seen_at")
-  publicKey  String   @map("public_key")
+  lastSeenAt DateTime? @map("last_seen_at")
 
   isVerified Boolean @default(false) @map("is_verified")
 
