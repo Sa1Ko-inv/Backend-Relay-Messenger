@@ -26,6 +26,7 @@ export class SessionService {
             OR: [{ username: { equals: login } }, { email: { equals: login } }],
          },
       });
+
       if (!user) {
          throw new NotFoundException('Пользователь не найден');
       }
@@ -55,6 +56,7 @@ export class SessionService {
             if (err) {
                return reject(new InternalServerErrorException('Не удалось завершить сессию'));
             }
+
             req.res?.clearCookie(this.configService.getOrThrow('SESSION_NAME'));
             resolve(true);
          });
