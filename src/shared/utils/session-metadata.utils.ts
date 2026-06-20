@@ -30,7 +30,7 @@ export function getSessionMetadata(req: Request, userAgent: string): SessionMeta
          latitude: location?.ll[0] || 0,
          longitude: location?.ll[1] || 0,
       },
-      deviceInfo: {
+      device: {
          browser: device.client?.name || 'Неизвестно',
          os: device.os?.name || 'Неизвестно',
          type: device.device?.type || 'Неизвестно',

@@ -12,6 +12,6 @@ export interface DeviceInfo {
 
 export interface SessionMetadata {
    location: LocationInfo;
-   deviceInfo: DeviceInfo;
+   device: DeviceInfo;
    ip: string;
 }

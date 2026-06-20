@@ -1,4 +1,5 @@
 import {
+   ConflictException,
    Injectable,
    InternalServerErrorException,
    NotFoundException,
@@ -9,6 +10,7 @@ import { verify } from 'argon2';
 import type { Request } from 'express';
 
 import { PrismaService } from '@/src/core/prisma/prisma.service';
+import { RedisService } from '@/src/core/redis/redis.service';
 import { LoginInput } from '@/src/modules/auth/session/inputs/login.input';
 import { getSessionMetadata } from '@/src/shared/utils/session-metadata.utils';
 
@@ -16,8 +18,57 @@ import { getSessionMetadata } from '@/src/shared/utils/session-metadata.utils';
 export class SessionService {
    public constructor(
       private readonly prismaService: PrismaService,
-      private readonly configService: ConfigService
+      private readonly configService: ConfigService,
+      private readonly redisService: RedisService
    ) {}
+
+   // Метод для получения всех сессий текущего пользователя, кроме текущей
+   public async findByUser(req: Request) {
+      const userId = req.session.userId;
+
+      if (!userId) {
+         throw new NotFoundException('Пользователь не обнаружен в сессии');
+      }
+      const keys = await this.redisService.client.keys('*');
+
+      const userSession: any[] = [];
+
+      for (const key of keys) {
+         const sessionData = await this.redisService.client.get(key);
+
+         if (sessionData) {
+            const session = JSON.parse(sessionData);
+
+            if (session.userId === userId) {
+               userSession.push({
+                  ...session,
+                  id: key.split(':')[1],
+               });
+            }
+         }
+      }
+
+      userSession.sort((a, b) => b.createdAt - a.createdAt);
+
+      return userSession.filter(session => session.id !== req.session.id);
+   }
+
+   //  Метод для получение текущей сессии
+   public async findCurrent(req: Request) {
+      const sessionId = req.session.id;
+
+      const sessionData = await this.redisService.client.get(
+         `${this.configService.get<string>('SESSION_FOLDER')}${sessionId}`
+      );
+
+      if (!sessionData) {
+         throw new Error('Сессия не найдена');
+      }
+
+      const session = JSON.parse(sessionData);
+
+      return { ...session, id: sessionId };
+   }
 
    public async login(req: Request, input: LoginInput, userAgent: string) {
       const { login, password } = input;
@@ -65,5 +116,24 @@ export class SessionService {
             resolve(true);
          });
       });
+   }
+
+   // Метод для очистки куки
+   public async clearSession(req: Request) {
+      req.res?.clearCookie(this.configService.getOrThrow('SESSION_NAME'));
+      return true;
+   }
+
+   // Метод для удаления сессии
+   public async remove(req: Request, id: string) {
+      if (req.session.id === id) {
+         throw new ConflictException('Невозможно удалить текущую сессию');
+      }
+
+      await this.redisService.client.del(
+         `${this.configService.get<string>('SESSION_FOLDER')}${id}`
+      );
+
+      return true;
    }
 }
