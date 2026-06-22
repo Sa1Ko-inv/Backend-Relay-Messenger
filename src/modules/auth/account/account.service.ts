@@ -3,10 +3,14 @@ import { hash } from 'argon2';
 
 import { PrismaService } from '@/src/core/prisma/prisma.service';
 import { CreateUserInput } from '@/src/modules/auth/account/inputs/create-user.input';
+import { VerificationService } from '@/src/modules/auth/verification/verification.service';
 
 @Injectable()
 export class AccountService {
-   public constructor(private readonly prismaService: PrismaService) {}
+   public constructor(
+      private readonly prismaService: PrismaService,
+      private readonly verificationService: VerificationService
+   ) {}
 
    public async me(id: string) {
       const user = await this.prismaService.user.findUnique({
@@ -35,9 +39,11 @@ export class AccountService {
          throw new ConflictException('Эта почта уже занят');
       }
 
-      await this.prismaService.user.create({
+      const user = await this.prismaService.user.create({
          data: { username, email, password: await hash(password), displayName: username },
       });
+
+      await this.verificationService.sendVerificationToken(user);
 
       return true;
    }

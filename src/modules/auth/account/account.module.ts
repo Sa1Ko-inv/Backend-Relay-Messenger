@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common';
-import { AccountService } from './account.service';
+
+import { VerificationService } from '@/src/modules/auth/verification/verification.service';
+
 import { AccountResolver } from './account.resolver';
+import { AccountService } from './account.service';
 
 @Module({
-  providers: [AccountResolver, AccountService],
+   providers: [AccountResolver, AccountService, VerificationService],
 })
 export class AccountModule {}
