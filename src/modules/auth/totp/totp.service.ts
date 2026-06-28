@@ -1,15 +1,66 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import type { User } from '@prisma/client';
 import { encode } from 'hi-base32';
 import { randomBytes } from 'node:crypto';
+import { TOTP } from 'otpauth';
+import * as QRcode from 'qrcode';
 
 import { PrismaService } from '@/src/core/prisma/prisma.service';
+import { EnableTotpInput } from '@/src/modules/auth/totp/inputs/enable-totp.input';
 
 @Injectable()
 export class TotpService {
    public constructor(private readonly prismaService: PrismaService) {}
 
    public async generateTotpSecret(user: User) {
-      const secret = encode(randomBytes(15)).replace(/=/g, '');
+      const secret = encode(randomBytes(15)).replace(/=/g, '').substring(0, 24);
+
+      const totp = new TOTP({
+         issuer: 'Relay Messenger',
+         label: `${user.email}`,
+         algorithm: 'SHA1',
+         digits: 6,
+         secret,
+      });
+
+      const otpauthUrl = totp.toString();
+
+      const qrcodeUrl = await QRcode.toDataURL(otpauthUrl);
+
+      return { qrcodeUrl, secret };
+   }
+
+   public async enableTotp(user: User, input: EnableTotpInput) {
+      const { secret, pin } = input;
+
+      const totp = new TOTP({
+         issuer: 'Relay Messenger',
+         label: `${user.email}`,
+         algorithm: 'SHA1',
+         digits: 6,
+         secret,
+      });
+
+      const delta = totp.validate({ token: pin });
+
+      if (delta === null) {
+         throw new BadRequestException('Неверный код');
+      }
+
+      await this.prismaService.user.update({
+         where: { id: user.id },
+         data: { IsTotpEnabled: true, totpSecret: secret },
+      });
+
+      return true;
+   }
+
+   public async disableTotp(user: User) {
+      await this.prismaService.user.update({
+         where: { id: user.id },
+         data: { IsTotpEnabled: false, totpSecret: null },
+      });
+
+      return true;
    }
 }

@@ -15,7 +15,7 @@ export function saveSession(req: Request, user: User, metadata: SessionMetadata)
          if (err) {
             return reject(new InternalServerErrorException('Не удалось сохранить сессию'));
          }
-         resolve(user);
+         resolve({ user });
       });
    });
 }
