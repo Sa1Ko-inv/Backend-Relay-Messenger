@@ -32,7 +32,10 @@ model User {
   IsTotpEnabled   Boolean @default(false) @map("is_totp_enabled")
   totpSecret      String? @map("totp_secret")
 
-  tokens          Token[]
+  isDeactivated Boolean   @default(false) @map("is_deactivated")
+  deactivatedAt DateTime? @map("deactivated_at")
+
+  tokens Token[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -60,6 +63,7 @@ model Token {
 enum TokenType {
   PASSWORD_RESET
   EMAIL_VERIFICATION
+  DEACTIVATE_ACCOUNT
 
   @@map("token_types")
 }
