@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { render } from '@react-email/components';
 
 import { AccountDeletionTemplate } from '@/src/modules/libs/mail/templates/account-deletion.template';
+import { ChangeEmailTemplate } from '@/src/modules/libs/mail/templates/change-email.template';
 import { DeactivateTemplate } from '@/src/modules/libs/mail/templates/deactivate.template';
 import { PasswordRecoveryTemplate } from '@/src/modules/libs/mail/templates/password-recovery.template';
 import { VerificationTemplate } from '@/src/modules/libs/mail/templates/verification.template';
@@ -44,6 +45,14 @@ export class MailService {
       const html = await render(AccountDeletionTemplate({ domain }));
 
       return this.sendMail(email, 'Аккаунт удален', html);
+   }
+
+   public async sendChangeEmailToken(email: string, token: string, metadata: SessionMetadata) {
+      const domain = this.configService.getOrThrow<string>('ALLOWED_ORIGIN');
+
+      const html = await render(ChangeEmailTemplate({ domain, token, metadata }));
+
+      return this.sendMail(email, 'Смена почты', html);
    }
 
    private sendMail(email: string, subject: string, html: string) {

@@ -7,6 +7,15 @@ type AuthModel {
   user: UserModel
 }
 
+input ChangePasswordInput {
+  newPassword: String!
+  oldPassword: String!
+}
+
+input ConfirmNewEmailInput {
+  token: String!
+}
+
 input CreateUserInput {
   email: String!
   password: String!
@@ -49,17 +58,26 @@ input LoginInput {
 }
 
 type Mutation {
+  changeEmail: Boolean!
+  changePassword(data: ChangePasswordInput!): Boolean!
   clearSessionCookie: Boolean!
+  confirmNewEmail(data: ConfirmNewEmailInput!): Boolean!
   createUser(data: CreateUserInput!): Boolean!
   deactivateAccount(data: DeactivateAccountInput!): AuthModel!
   disableTotp: Boolean!
   enableTotp(data: EnableTotpInput!): Boolean!
   loginUser(data: LoginInput!): AuthModel!
   logoutUser: Boolean!
+  newEmail(data: NewEmailInput!): Boolean!
   newPassword(data: NewPasswordInput!): Boolean!
   removeSession(id: String!): Boolean!
   resetPassword(data: ResetPasswordInput!): Boolean!
-  verifyAccount(data: VerificationInput!): UserModel!
+  verifyEmailAccount(data: VerificationInput!): AuthModel!
+}
+
+input NewEmailInput {
+  email: String!
+  token: String!
 }
 
 input NewPasswordInput {

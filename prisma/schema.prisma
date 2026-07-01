@@ -51,6 +51,8 @@ model Token {
 
   expiresIn DateTime @map("expires_in")
 
+  newEmail String? @map("new_email")
+
   user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String? @map("user_id")
 
@@ -64,6 +66,7 @@ enum TokenType {
   PASSWORD_RESET
   EMAIL_VERIFICATION
   DEACTIVATE_ACCOUNT
+  CHANGE_EMAIL
 
   @@map("token_types")
 }
