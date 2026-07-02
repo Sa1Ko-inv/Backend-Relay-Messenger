@@ -12,6 +12,7 @@ import { TotpModule } from '@/src/modules/auth/totp/totp.module';
 import { VerificationModule } from '@/src/modules/auth/verification/verification.module';
 import { CronModule } from '@/src/modules/cron/cron.module';
 import { MailModule } from '@/src/modules/libs/mail/mail.module';
+import { StorageService } from '@/src/modules/libs/storage/storage.service';
 import { IS_DEV_ENV } from '@/src/shared/utils/is-dev.util';
 
 import { PrismaModule } from './prisma/prisma.module';
@@ -39,6 +40,7 @@ import { RedisModule } from './redis/redis.module';
       PasswordRecoveryModule,
       TotpModule,
       DeactivateModule,
+      StorageService,
    ],
 })
 export class CoreModule {}
