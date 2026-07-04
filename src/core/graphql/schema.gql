@@ -3,6 +3,7 @@
 # ------------------------------------------------------
 
 type AuthModel {
+  accessToken: String
   message: String
   user: UserModel
 }

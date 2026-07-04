@@ -29,7 +29,7 @@ export class SessionService {
 
    // Метод для получения всех сессий текущего пользователя, кроме текущей
    public async findByUser(req: Request) {
-      const userId = req.session.userId;
+      const userId = (req as any).user?.id || req.session.userId;
 
       if (!userId) {
          throw new NotFoundException('Пользователь не обнаружен в сессии');
@@ -55,12 +55,14 @@ export class SessionService {
 
       userSession.sort((a, b) => b.createdAt - a.createdAt);
 
-      return userSession.filter(session => session.id !== req.session.id);
+      const currentSessionId = req._bearerSessionId || req.session.id;
+
+      return userSession.filter(session => session.id !== currentSessionId);
    }
 
    //  Метод для получение текущей сессии
    public async findCurrent(req: Request) {
-      const sessionId = req.session.id;
+      const sessionId = req._bearerSessionId || req.session.id;
 
       const sessionData = await this.redisService.client.get(
          `${this.configService.get<string>('SESSION_FOLDER')}${sessionId}`
@@ -130,7 +132,7 @@ export class SessionService {
    }
 
    public async logout(req: Request) {
-      return destroySession(req, this.configService);
+      return destroySession(req, this.configService, this.redisService);
    }
 
    // Метод для очистки куки
@@ -141,7 +143,9 @@ export class SessionService {
 
    // Метод для удаления сессии
    public async remove(req: Request, id: string) {
-      if (req.session.id === id) {
+      const currentSessionId = req._bearerSessionId || req.session.id;
+
+      if (currentSessionId === id) {
          throw new ConflictException('Невозможно удалить текущую сессию');
       }
 

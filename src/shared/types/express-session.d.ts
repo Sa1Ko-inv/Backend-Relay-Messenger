@@ -9,3 +9,9 @@ declare module 'express-session' {
       metadata: SessionMetadata;
    }
 }
+
+declare module 'express' {
+   interface Request {
+      _bearerSessionId?: string;
+   }
+}
