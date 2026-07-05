@@ -5,18 +5,19 @@ import { verify } from 'argon2';
 import type { Request } from 'express';
 
 import { PrismaService } from '@/src/core/prisma/prisma.service';
+import { AuthSessionService } from '@/src/modules/auth/auth-session.service';
 import { DeactivateAccountInput } from '@/src/modules/auth/deactivate/inputs/deactivate-account.input';
 import { MailService } from '@/src/modules/libs/mail/mail.service';
 import { generateToken } from '@/src/shared/utils/generate-token.util';
 import { getSessionMetadata } from '@/src/shared/utils/session-metadata.utils';
-import { destroySession, saveSession } from '@/src/shared/utils/session.utils';
 
 @Injectable()
 export class DeactivateService {
    public constructor(
       private readonly prismaService: PrismaService,
       private readonly configService: ConfigService,
-      private readonly mailService: MailService
+      private readonly mailService: MailService,
+      private readonly authSessionService: AuthSessionService
    ) {}
 
    public async deactivate(
@@ -72,7 +73,7 @@ export class DeactivateService {
          where: { id: existingToken.id, type: TokenType.DEACTIVATE_ACCOUNT },
       });
 
-      return destroySession(req, this.configService);
+      return this.authSessionService.destroySession(req);
    }
 
    public async sendDeactivateToken(req: Request, user: User, userAgent: string) {

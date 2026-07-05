@@ -12,19 +12,18 @@ import type { Request } from 'express';
 import { TOTP } from 'otpauth';
 
 import { PrismaService } from '@/src/core/prisma/prisma.service';
-import { RedisService } from '@/src/core/redis/redis.service';
+import { AuthSessionService } from '@/src/modules/auth/auth-session.service';
 import { LoginInput } from '@/src/modules/auth/session/inputs/login.input';
 import { VerificationService } from '@/src/modules/auth/verification/verification.service';
 import { getSessionMetadata } from '@/src/shared/utils/session-metadata.utils';
-import { destroySession, saveSession } from '@/src/shared/utils/session.utils';
 
 @Injectable()
 export class SessionService {
    public constructor(
       private readonly prismaService: PrismaService,
       private readonly configService: ConfigService,
-      private readonly redisService: RedisService,
-      private readonly verificationService: VerificationService
+      private readonly verificationService: VerificationService,
+      private readonly authSessionService: AuthSessionService
    ) {}
 
    // Метод для получения всех сессий текущего пользователя, кроме текущей
@@ -34,47 +33,17 @@ export class SessionService {
       if (!userId) {
          throw new NotFoundException('Пользователь не обнаружен в сессии');
       }
-      const keys = await this.redisService.client.keys('*');
-
-      const userSession: any[] = [];
-
-      for (const key of keys) {
-         const sessionData = await this.redisService.client.get(key);
-
-         if (sessionData) {
-            const session = JSON.parse(sessionData);
-
-            if (session.userId === userId) {
-               userSession.push({
-                  ...session,
-                  id: key.split(':')[1],
-               });
-            }
-         }
-      }
-
-      userSession.sort((a, b) => b.createdAt - a.createdAt);
 
       const currentSessionId = req._bearerSessionId || req.session.id;
 
-      return userSession.filter(session => session.id !== currentSessionId);
+      return this.authSessionService.getAllUserSessions(userId, currentSessionId);
    }
 
    //  Метод для получение текущей сессии
    public async findCurrent(req: Request) {
       const sessionId = req._bearerSessionId || req.session.id;
 
-      const sessionData = await this.redisService.client.get(
-         `${this.configService.get<string>('SESSION_FOLDER')}${sessionId}`
-      );
-
-      if (!sessionData) {
-         throw new Error('Сессия не найдена');
-      }
-
-      const session = JSON.parse(sessionData);
-
-      return { ...session, id: sessionId };
+      return this.authSessionService.findCurrentSession(sessionId);
    }
 
    public async login(req: Request, input: LoginInput, userAgent: string) {
@@ -128,11 +97,11 @@ export class SessionService {
 
       const metadata = getSessionMetadata(req, userAgent);
 
-      return saveSession(req, user, metadata);
+      return this.authSessionService.saveSession(req, user, metadata);
    }
 
    public async logout(req: Request) {
-      return destroySession(req, this.configService, this.redisService);
+      return this.authSessionService.destroySession(req);
    }
 
    // Метод для очистки куки
@@ -149,9 +118,7 @@ export class SessionService {
          throw new ConflictException('Невозможно удалить текущую сессию');
       }
 
-      await this.redisService.client.del(
-         `${this.configService.get<string>('SESSION_FOLDER')}${id}`
-      );
+      await this.authSessionService.removeSession(id);
 
       return true;
    }

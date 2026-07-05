@@ -3,17 +3,18 @@ import { TokenType, User } from '@prisma/client';
 import type { Request } from 'express';
 
 import { PrismaService } from '@/src/core/prisma/prisma.service';
+import { AuthSessionService } from '@/src/modules/auth/auth-session.service';
 import { VerificationInput } from '@/src/modules/auth/verification/inputs/verification.input';
 import { MailService } from '@/src/modules/libs/mail/mail.service';
 import { generateToken } from '@/src/shared/utils/generate-token.util';
 import { getSessionMetadata } from '@/src/shared/utils/session-metadata.utils';
-import { saveSession } from '@/src/shared/utils/session.utils';
 
 @Injectable()
 export class VerificationService {
    public constructor(
       private readonly prismaService: PrismaService,
-      private readonly mailService: MailService
+      private readonly mailService: MailService,
+      private readonly authSessionService: AuthSessionService
    ) {}
 
    public async verify(req: Request, input: VerificationInput, userAgent: string) {
@@ -44,7 +45,7 @@ export class VerificationService {
 
       const metadata = getSessionMetadata(req, userAgent);
 
-      return saveSession(req, user, metadata);
+      return this.authSessionService.saveSession(req, user, metadata);
    }
 
    public async sendVerificationToken(user: User) {

@@ -1,3 +1,4 @@
+import { User } from '@prisma/client';
 import 'express-session';
 
 import type { SessionMetadata } from './session-metadata.types';
@@ -13,5 +14,6 @@ declare module 'express-session' {
 declare module 'express' {
    interface Request {
       _bearerSessionId?: string;
+      user?: User;
    }
 }
