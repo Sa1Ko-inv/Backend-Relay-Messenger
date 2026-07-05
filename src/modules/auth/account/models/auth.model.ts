@@ -11,5 +11,5 @@ export class AuthModel {
    public message: string;
 
    @Field(() => String, { nullable: true })
-   public accessToken?: string;
+   public sessionToken?: string;
 }

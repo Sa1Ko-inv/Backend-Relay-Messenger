@@ -16,12 +16,12 @@ export class GqlAuthGuard implements CanActivate {
       const ctx = GqlExecutionContext.create(context);
       const request = ctx.getContext().req;
 
-      const user = await this.authSessionService.resolveSessionFromRequest(request);
+      const { user, sessionId } =
+         await this.authSessionService.resolveSessionFromRequest(request);
 
-      if (!user) {
-         throw new UnauthorizedException('Пользователь не авторизован');
-      }
       request.user = user;
+      request._bearerSessionId = sessionId;
+
       return true;
    }
 }

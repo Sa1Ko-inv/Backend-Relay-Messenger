@@ -11,6 +11,8 @@ import { PrismaService } from '@/src/core/prisma/prisma.service';
 import { RedisService } from '@/src/core/redis/redis.service';
 import type { SessionMetadata } from '@/src/shared/types/session-metadata.types';
 
+import type { ResolvedSession } from '@/src/shared/types/resolved-session.types';
+
 @Injectable()
 export class AuthSessionService {
    public constructor(
@@ -29,7 +31,7 @@ export class AuthSessionService {
             if (err) {
                return reject(new InternalServerErrorException('Не удалось сохранить сессию'));
             }
-            resolve({ user, accessToken: req.session.id });
+            resolve({ user, sessionToken: req.session.id });
          });
       });
    }
@@ -58,6 +60,8 @@ export class AuthSessionService {
    }
 
    public async getAllUserSessions(userId: string, currentSessionId: string) {
+      // TODO:
+      // заменить KEYS на индекс пользовательских сессий
       const keys = await this.redisService.client.keys('*');
 
       const userSession: any[] = [];
@@ -90,7 +94,7 @@ export class AuthSessionService {
       );
 
       if (!sessionData) {
-         throw new Error('Сессия не найдена');
+         throw new UnauthorizedException('Сессия не найдена');
       }
 
       const session = JSON.parse(sessionData);
@@ -98,7 +102,7 @@ export class AuthSessionService {
       return { ...session, id: sessionId };
    }
 
-   public async resolveSessionFromRequest(request: Request) {
+   public async resolveSessionFromRequest(request: Request): Promise<ResolvedSession> {
       // 1. Попытка через cookie-сессию (веб / Next.js)
       if (request.session?.userId) {
          const user = await this.prismaService.user.findUnique({
@@ -109,8 +113,7 @@ export class AuthSessionService {
             throw new UnauthorizedException('Пользователь не найден');
          }
 
-         request.user = user;
-         return true;
+         return { user, sessionId: request.session.id };
       }
 
       // 2. Попытка через Bearer-токен (мобильные клиенты)
@@ -135,11 +138,7 @@ export class AuthSessionService {
             throw new UnauthorizedException('Пользователь не найден');
          }
 
-         request.user = user;
-         // Сохраняем ID Bearer-сессии отдельно (session.id нельзя переопределить)
-         // НЕ трогаем request.session, чтобы express-session не создавал лишнюю сессию в Redis
-         request._bearerSessionId = token;
-         return true;
+         return { user, sessionId: token };
       }
       throw new UnauthorizedException('Пользователь не авторизован');
    }

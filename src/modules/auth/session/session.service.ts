@@ -28,7 +28,7 @@ export class SessionService {
 
    // Метод для получения всех сессий текущего пользователя, кроме текущей
    public async findByUser(req: Request) {
-      const userId = (req as any).user?.id || req.session.userId;
+      const userId = req.user?.id || req.session.userId;
 
       if (!userId) {
          throw new NotFoundException('Пользователь не обнаружен в сессии');
