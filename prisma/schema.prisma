@@ -44,6 +44,8 @@ model User {
   reactions                  Reaction[]
   authoredStickerPacks       StickerPack[]
   userStickerPacks           UserStickerPack[]
+  startedCalls               Call[]                      @relation("StartedCalls")
+  callParticipants           CallParticipant[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -90,12 +92,10 @@ model Conversation {
   lastMessage Message? @relation("ConversationLastMessage", fields: [lastMessageId], references: [id], onDelete: SetNull)
 
   settings ConversationSettings?
-
-  members ConversationMember[]
-
-  messages Message[] @relation("ConversationMessages")
-
-  invites ConversationInvite[]
+  members  ConversationMember[]
+  messages Message[]             @relation("ConversationMessages")
+  invites  ConversationInvite[]
+  calls    Call[]
 
   pinnedMessages ConversationPinnedMessage[]
 
@@ -144,7 +144,7 @@ model ConversationMember {
   // lastReadMessage Message?
   // @relation(...)
   @@unique([conversationId, userId])
-  @@index([conversationId])
+  @@index([conversationId, joinedAt])
   @@index([userId])
   @@map("conversation_members")
 }
@@ -250,11 +250,12 @@ model Message {
   reactions                  Reaction[]
   conversationPinnedMessage  ConversationPinnedMessage[]
   lastMessageInConversations Conversation[]              @relation("ConversationLastMessage")
+  call                       Call?                       @relation("CallMessage")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@index([conversationId])
+  @@index([conversationId, createdAt])
   @@index([senderId])
   @@index([createdAt])
   @@map("messages")
@@ -410,6 +411,64 @@ model UserStickerPack {
   @@map("user_sticker_packs")
 }
 
+model Call {
+  id String @id @default(uuid())
+
+  type   CallType
+  status CallStatus
+
+  title String?
+
+  startedAt DateTime? @map("started_at")
+  endedAt   DateTime? @map("ended_at")
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String       @map("conversation_id")
+
+  startedBy   User   @relation("StartedCalls", fields: [startedById], references: [id], onDelete: Cascade)
+  startedById String @map("started_by_id")
+
+  message   Message? @relation("CallMessage", fields: [messageId], references: [id], onDelete: SetNull)
+  messageId String?  @unique @map("message_id")
+
+  participants CallParticipant[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([conversationId])
+  @@index([startedById])
+  @@index([startedAt])
+  @@map("calls")
+}
+
+model CallParticipant {
+  id String @id @default(uuid())
+
+  joinedAt DateTime? @map("joined_at")
+  leftAt   DateTime? @map("left_at")
+
+  isMuted         Boolean @default(false) @map("is_muted")
+  isCameraEnabled Boolean @default(true) @map("is_camera_enabled")
+  isScreenSharing Boolean @default(false) @map("is_screen_sharing")
+
+  call   Call   @relation(fields: [callId], references: [id], onDelete: Cascade)
+  callId String @map("call_id")
+
+  isConnected Boolean @default(false) @map("is_connected")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([callId, userId])
+  @@index([callId])
+  @@index([userId])
+  @@map("call_participants")
+}
+
 enum TokenType {
   PASSWORD_RESET
   EMAIL_VERIFICATION
@@ -470,4 +529,21 @@ enum AttachmentPurpose {
   CUSTOM_STICKER
 
   @@map("attachment_purposes")
+}
+
+enum CallType {
+  VOICE
+  VIDEO
+
+  @@map("call_types")
+}
+
+enum CallStatus {
+  RINGING
+  ACTIVE
+  ENDED
+  MISSED
+  CANCELLED
+
+  @@map("call_statuses")
 }
