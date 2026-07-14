@@ -49,7 +49,7 @@ export class TotpService {
 
       await this.prismaService.user.update({
          where: { id: user.id },
-         data: { IsTotpEnabled: true, totpSecret: secret },
+         data: { isTotpEnabled: true, totpSecret: secret },
       });
 
       return true;
@@ -58,7 +58,7 @@ export class TotpService {
    public async disableTotp(user: User) {
       await this.prismaService.user.update({
          where: { id: user.id },
-         data: { IsTotpEnabled: false, totpSecret: null },
+         data: { isTotpEnabled: false, totpSecret: null },
       });
 
       return true;

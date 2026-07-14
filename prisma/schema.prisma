@@ -29,13 +29,21 @@ model User {
 
   isVerified      Boolean @default(false) @map("is_verified")
   isEmailVerified Boolean @default(false) @map("is_email_verified")
-  IsTotpEnabled   Boolean @default(false) @map("is_totp_enabled")
+  isTotpEnabled   Boolean @default(false) @map("is_totp_enabled")
   totpSecret      String? @map("totp_secret")
 
   isDeactivated Boolean   @default(false) @map("is_deactivated")
   deactivatedAt DateTime? @map("deactivated_at")
 
-  tokens Token[]
+  tokens                     Token[]
+  ownedConversations         Conversation[]
+  members                    ConversationMember[]
+  createdInvites             ConversationInvite[]
+  conversationPinnedMessages ConversationPinnedMessage[]
+  messages                   Message[]
+  reactions                  Reaction[]
+  createdStickerPacks        StickerPack[]
+  userStickerPacks           UserStickerPack[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -62,6 +70,345 @@ model Token {
   @@map("tokens")
 }
 
+model Conversation {
+  id String @id @default(uuid())
+
+  type       ConversationType
+  visibility ConversationVisibility
+
+  title       String
+  username    String? @unique
+  description String?
+  avatar      String?
+
+  isVerified Boolean @default(false) @map("is_verified")
+
+  lastMessageId String? @map("last_message_id")
+
+  owner       User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  ownerId     String?  @map("owner_id")
+  lastMessage Message? @relation("ConversationLastMessage", fields: [lastMessageId], references: [id], onDelete: SetNull)
+
+  settings ConversationSettings?
+
+  members ConversationMember[]
+
+  messages Message[] @relation("ConversationMessages")
+
+  invites ConversationInvite[]
+
+  pinnedMessages ConversationPinnedMessage[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([ownerId])
+  @@index([createdAt])
+  @@map("conversations")
+}
+
+model ConversationMember {
+  id String @id @default(uuid())
+
+  role ConversationRole
+
+  // Permissions
+
+  canPost           Boolean @default(false) @map("can_post")
+  canInvite         Boolean @default(false) @map("can_invite")
+  canEditInfo       Boolean @default(false) @map("can_edit_info")
+  canDeleteMessages Boolean @default(false) @map("can_delete_messages")
+  canPinMessages    Boolean @default(false) @map("can_pin_messages")
+  canManageMembers  Boolean @default(false) @map("can_manage_members")
+  canManageAdmins   Boolean @default(false) @map("can_manage_admins")
+  canManageSettings Boolean @default(false) @map("can_manage_settings")
+
+  // User settings
+
+  isMuted  Boolean @default(false) @map("is_muted")
+  isPinned Boolean @default(false) @map("is_pinned")
+
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  lastReadMessageId String? @map("last_read_message_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String       @map("conversation_id")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+
+  // lastReadMessage Message?
+  // @relation(...)
+  @@unique([conversationId, userId])
+  @@index([conversationId])
+  @@index([userId])
+  @@map("conversation_members")
+}
+
+model ConversationSettings {
+  id String @id @default(uuid())
+
+  allowMedia      Boolean @default(true) @map("allow_media")
+  allowVoice      Boolean @default(true) @map("allow_voice")
+  allowReactions  Boolean @default(true) @map("allow_reactions")
+  allowForward    Boolean @default(true) @map("allow_forward")
+  allowScreenshot Boolean @default(true) @map("allow_screenshot")
+  historyVisible  Boolean @default(true) @map("history_visible")
+  slowModeSeconds Int     @default(0) @map("slow_mode_seconds")
+
+  joinRequestsEnabled Boolean @default(false) @map("join_requests_enabled")
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String       @unique @map("conversation_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("conversation_settings")
+}
+
+model ConversationInvite {
+  id String @id @default(uuid())
+
+  code String @unique
+
+  maxUses Int? @map("max_uses")
+  uses    Int  @default(0) @map("uses")
+
+  isRevoked Boolean @default(false) @map("is_revoked")
+
+  expiresAt DateTime? @map("expires_at")
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String       @map("conversation_id")
+
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdById String @map("created_by_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([conversationId])
+  @@index([createdById])
+  @@map("conversation_invites")
+}
+
+model ConversationPinnedMessage {
+  id String @id @default(uuid())
+
+  pinnedAt DateTime @default(now()) @map("pinned_at")
+
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId String  @unique @map("message_id")
+
+  pinnedBy   User   @relation(fields: [pinnedById], references: [id], onDelete: Cascade)
+  pinnedById String @map("pinned_by_id")
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String       @map("conversation_id")
+
+  @@index([conversationId])
+  @@index([messageId])
+  @@map("conversation_pinned_messages")
+}
+
+model Message {
+  id String @id @default(uuid())
+
+  type MessageType
+
+  content String?
+
+  isDeleted Boolean @default(false) @map("is_deleted")
+
+  editedAt DateTime? @map("edited_at")
+
+  conversation   Conversation @relation("ConversationMessages", fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String       @map("conversation_id")
+
+  sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  senderId String @map("sender_id")
+
+  replyToMessage   Message?  @relation("MessageReplies", fields: [replyToMessageId], references: [id], onDelete: SetNull)
+  replyToMessageId String?   @map("reply_to_message_id")
+  replies          Message[] @relation("MessageReplies")
+
+  forwardedFromMessage   Message?  @relation("MessageForward", fields: [forwardedFromMessageId], references: [id], onDelete: SetNull)
+  forwardedFromMessageId String?   @map("forwarded_from_message_id")
+  forwards               Message[] @relation("MessageForward")
+
+  sticker   Sticker? @relation("MessageSticker", fields: [stickerId], references: [id], onDelete: SetNull)
+  stickerId String?  @map("sticker_id")
+
+  attachments                Attachment[]
+  reactions                  Reaction[]
+  conversationPinnedMessage  ConversationPinnedMessage[]
+  lastMessageInConversations Conversation[]              @relation("ConversationLastMessage")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+model Attachment {
+  id String @id @default(uuid())
+
+  type    AttachmentType
+  purpose AttachmentPurpose
+
+  url String
+
+  fileName String? @map("file_name")
+  mimeType String  @map("mime_type")
+
+  size Int
+
+  width  Int?
+  height Int?
+
+  duration Int?
+
+  // Поведение
+
+  isSpoiler Boolean @default(false) @map("is_spoiler")
+
+  selfDestructAt DateTime? @map("self_destruct_at")
+
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId String  @map("message_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([messageId])
+  @@map("attachments")
+}
+
+model Reaction {
+  id String @id @default(uuid())
+
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId String  @map("message_id")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+
+  emoji   ReactionEmoji @relation(fields: [emojiId], references: [id], onDelete: Restrict)
+  emojiId String        @map("emoji_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
+  @@index([emojiId])
+  @@map("reactions")
+}
+
+model ReactionEmoji {
+  id String @id @default(uuid())
+
+  emoji String
+
+  isPremium Boolean @default(false) @map("is_premium")
+
+  animationUrl String? @map("animation_url")
+
+  reactions Reaction[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([emoji, isPremium])
+  @@map("reaction_emojis")
+}
+
+model StickerPack {
+  id String @id @default(uuid())
+
+  title String
+
+  username String? @unique
+
+  description String?
+
+  isOfficial Boolean @default(false) @map("is_official")
+
+  author   User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  authorId String? @map("author_id")
+
+  stickers Sticker[]         @relation("StickerPackStickers")
+  users    UserStickerPack[]
+
+  coverSticker   Sticker? @relation("StickerPackCover", fields: [coverStickerId], references: [id], onDelete: SetNull)
+  coverStickerId String?  @unique @map("cover_sticker_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([authorId])
+  @@map("sticker_packs")
+}
+
+model Sticker {
+  id String @id @default(uuid())
+
+  emoji String?
+
+  url String
+
+  width Int
+
+  height Int
+
+  size Int
+
+  position Int
+
+  isPremium Boolean @default(false) @map("is_premium")
+
+  pack   StickerPack @relation("StickerPackStickers", fields: [packId], references: [id], onDelete: Cascade)
+  packId String      @map("pack_id")
+
+  messages Message[] @relation("MessageSticker")
+
+  coverForPack StickerPack? @relation("StickerPackCover")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([packId, position])
+  @@index([packId])
+  @@map("stickers")
+}
+
+model UserStickerPack {
+  id String @id @default(uuid())
+
+  position Int
+
+  installedAt DateTime @default(now()) @map("installed_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+
+  pack   StickerPack @relation(fields: [packId], references: [id], onDelete: Cascade)
+  packId String      @map("pack_id")
+
+  @@unique([userId, packId])
+  @@index([userId])
+  @@index([packId])
+  @@map("user_sticker_packs")
+}
+
 enum TokenType {
   PASSWORD_RESET
   EMAIL_VERIFICATION
@@ -69,4 +416,57 @@ enum TokenType {
   CHANGE_EMAIL
 
   @@map("token_types")
+}
+
+enum ConversationType {
+  PERSONAL
+  GROUP
+  CHANNEL
+  FAVORITES
+
+  @@map("conversation_types")
+}
+
+enum ConversationVisibility {
+  PRIVATE
+  PUBLIC
+
+  @@map("conversation_visibility")
+}
+
+enum ConversationRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  MEMBER
+
+  @@map("conversation_roles")
+}
+
+enum MessageType {
+  USER
+  SYSTEM
+
+  @@map("message_types")
+}
+
+enum AttachmentType {
+  IMAGE
+  VIDEO
+  AUDIO
+  FILE
+
+  @@map("attachment_types")
+}
+
+enum AttachmentPurpose {
+  MEDIA
+  FILE
+
+  VOICE_MESSAGE
+  VIDEO_MESSAGE
+
+  CUSTOM_STICKER
+
+  @@map("attachment_purposes")
 }

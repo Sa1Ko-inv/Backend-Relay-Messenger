@@ -73,7 +73,7 @@ export class SessionService {
          );
       }
 
-      if (user.IsTotpEnabled) {
+      if (user.isTotpEnabled) {
          if (!pin) {
             return {
                user: null,

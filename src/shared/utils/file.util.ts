@@ -1,20 +1,25 @@
 import { ReadStream } from 'node:fs';
+import { extname } from 'node:path';
 
 export function validateFileFormat(filename: string, allowedFileFormats: string[]) {
    const fileParts = filename.split('.');
 
-   const extension = fileParts[fileParts.length - 1];
+   const extension = extname(filename).slice(1).toLowerCase();
+   // const extension = fileParts[fileParts.length - 1];
 
    return allowedFileFormats.includes(extension);
 }
 
-export async function validateFileSize(fileStream: ReadStream, allowedFileSizeInBites: number) {
+export async function validateFileSize(
+   fileStream: ReadStream,
+   allowedFileSizeInBites: number
+) {
    return new Promise((resolve, reject) => {
       let fileSizeInBites = 0;
 
       fileStream
          .on('data', (data: Buffer) => {
-            fileSizeInBites = data.byteLength;
+            fileSizeInBites += data.byteLength;
          })
          .on('end', () => {
             resolve(fileSizeInBites <= allowedFileSizeInBites);
