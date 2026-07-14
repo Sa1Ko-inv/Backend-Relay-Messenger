@@ -42,7 +42,7 @@ model User {
   conversationPinnedMessages ConversationPinnedMessage[]
   messages                   Message[]
   reactions                  Reaction[]
-  createdStickerPacks        StickerPack[]
+  authoredStickerPacks       StickerPack[]
   userStickerPacks           UserStickerPack[]
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -202,6 +202,8 @@ model ConversationPinnedMessage {
 
   pinnedAt DateTime @default(now()) @map("pinned_at")
 
+  position Int
+
   message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
   messageId String  @unique @map("message_id")
 
@@ -235,11 +237,11 @@ model Message {
 
   replyToMessage   Message?  @relation("MessageReplies", fields: [replyToMessageId], references: [id], onDelete: SetNull)
   replyToMessageId String?   @map("reply_to_message_id")
-  replies          Message[] @relation("MessageReplies")
+  repliedMessages  Message[] @relation("MessageReplies")
 
   forwardedFromMessage   Message?  @relation("MessageForward", fields: [forwardedFromMessageId], references: [id], onDelete: SetNull)
   forwardedFromMessageId String?   @map("forwarded_from_message_id")
-  forwards               Message[] @relation("MessageForward")
+  forwardedMessages      Message[] @relation("MessageForward")
 
   sticker   Sticker? @relation("MessageSticker", fields: [stickerId], references: [id], onDelete: SetNull)
   stickerId String?  @map("sticker_id")
@@ -345,11 +347,11 @@ model StickerPack {
   author   User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
   authorId String? @map("author_id")
 
-  stickers Sticker[]         @relation("StickerPackStickers")
-  users    UserStickerPack[]
-
   coverSticker   Sticker? @relation("StickerPackCover", fields: [coverStickerId], references: [id], onDelete: SetNull)
   coverStickerId String?  @unique @map("cover_sticker_id")
+
+  stickers       Sticker[]         @relation("StickerPackStickers")
+  installedUsers UserStickerPack[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -378,9 +380,8 @@ model Sticker {
   pack   StickerPack @relation("StickerPackStickers", fields: [packId], references: [id], onDelete: Cascade)
   packId String      @map("pack_id")
 
-  messages Message[] @relation("MessageSticker")
-
-  coverForPack StickerPack? @relation("StickerPackCover")
+  usedInMessages Message[]    @relation("MessageSticker")
+  coverForPack   StickerPack? @relation("StickerPackCover")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
