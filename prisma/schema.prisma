@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -130,8 +125,6 @@ model ConversationMember {
 
   joinedAt DateTime @default(now()) @map("joined_at")
 
-  lastReadMessageId String? @map("last_read_message_id")
-
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -141,8 +134,9 @@ model ConversationMember {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String @map("user_id")
 
-  // lastReadMessage Message?
-  // @relation(...)
+  lastReadMessage   Message? @relation("LastReadMessage", fields: [lastReadMessageId], references: [id], onDelete: SetNull)
+  lastReadMessageId String?  @map("last_read_message_id")
+
   @@unique([conversationId, userId])
   @@index([conversationId, joinedAt])
   @@index([userId])
@@ -251,6 +245,7 @@ model Message {
   conversationPinnedMessage  ConversationPinnedMessage[]
   lastMessageInConversations Conversation[]              @relation("ConversationLastMessage")
   call                       Call?                       @relation("CallMessage")
+  readByMembers              ConversationMember[]        @relation("LastReadMessage")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
