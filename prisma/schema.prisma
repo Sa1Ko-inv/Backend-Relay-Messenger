@@ -315,6 +315,9 @@ model ReactionEmoji {
   id String @id @default(uuid())
 
   emoji String
+  name  String?
+
+  category ReactionCategory @default(DEFAULT)
 
   isPremium Boolean @default(false) @map("is_premium")
 
@@ -496,6 +499,14 @@ enum ConversationRole {
   MEMBER
 
   @@map("conversation_roles")
+}
+
+enum ReactionCategory {
+  DEFAULT
+  PREMIUM
+  CUSTOM
+
+  @@map("reaction_categories")
 }
 
 enum MessageType {
