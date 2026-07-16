@@ -23,6 +23,10 @@ input ConfirmNewEmailInput {
   token: String!
 }
 
+input CreatePersonalConversationInput {
+  userId: String!
+}
+
 input CreateUserInput {
   email: String!
   password: String!
@@ -71,6 +75,7 @@ type Mutation {
   changeProfileInfo(data: ChangeProfileInfoInput!): Boolean!
   clearSessionCookie: Boolean!
   confirmNewEmail(data: ConfirmNewEmailInput!): Boolean!
+  createPersonalConversation(data: CreatePersonalConversationInput!): Boolean!
   createUser(data: CreateUserInput!): Boolean!
   deactivateAccount(data: DeactivateAccountInput!): AuthModel!
   disableTotp: Boolean!
@@ -129,7 +134,6 @@ type TotpModel {
 scalar Upload
 
 type UserModel {
-  IsTotpEnabled: Boolean!
   avatar: String
   bio: String
   createdAt: DateTime!
@@ -139,6 +143,7 @@ type UserModel {
   id: ID!
   isDeactivated: Boolean!
   isEmailVerified: Boolean!
+  isTotpEnabled: Boolean!
   isVerified: Boolean!
   lastSeenAt: DateTime!
   password: String!

@@ -12,6 +12,7 @@ import { ProfileModule } from '@/src/modules/auth/profile/profile.module';
 import { SessionModule } from '@/src/modules/auth/session/session.module';
 import { TotpModule } from '@/src/modules/auth/totp/totp.module';
 import { VerificationModule } from '@/src/modules/auth/verification/verification.module';
+import { ConversationModule } from '@/src/modules/conversation/conversation.module';
 import { CronModule } from '@/src/modules/cron/cron.module';
 import { MailModule } from '@/src/modules/libs/mail/mail.module';
 import { StorageModule } from '@/src/modules/libs/storage/storage.module';
@@ -46,6 +47,7 @@ import { RedisModule } from './redis/redis.module';
       PasswordRecoveryModule,
       TotpModule,
       DeactivateModule,
+      ConversationModule,
    ],
 })
 export class CoreModule {}

@@ -73,7 +73,7 @@ model Conversation {
   type       ConversationType
   visibility ConversationVisibility
 
-  title       String
+  title       String?
   username    String? @unique
   description String?
   avatar      String?
