@@ -1,4 +1,4 @@
-import { Args, Mutation, Resolver } from '@nestjs/graphql';
+import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
 
 import { CreatePersonalConversationInput } from '@/src/modules/conversation/inputs/create-personal-conversation.input';
 import { Authorization } from '@/src/shared/decorators/auth.decorator';
@@ -18,5 +18,11 @@ export class ConversationResolver {
       @Args('data') input: CreatePersonalConversationInput
    ) {
       return this.conversationService.createPersonalConversation(id, input);
+   }
+
+   @Authorization()
+   @Query(() => ConversationModel, { name: 'getFavoritesConversation' })
+   public async getFavoritesConversation(@Authorized('id') id: string) {
+      return this.conversationService.getFavoritesConversation(id);
    }
 }

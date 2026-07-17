@@ -179,6 +179,7 @@ type Query {
   findProfile: UserModel!
   findSessionsByUser: [SessionModel!]!
   generateTotpSecret: TotpModel!
+  getFavoritesConversation: ConversationModel!
 }
 
 input ResetPasswordInput {

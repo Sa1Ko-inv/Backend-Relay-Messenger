@@ -1,5 +1,10 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import { User } from '@prisma/client';
+import {
+   ConversationRole,
+   ConversationType,
+   ConversationVisibility,
+   User,
+} from '@prisma/client';
 import { hash, verify } from 'argon2';
 
 import { PrismaService } from '@/src/core/prisma/prisma.service';
@@ -42,8 +47,32 @@ export class AccountService {
          throw new ConflictException('Эта почта уже занят');
       }
 
-      const user = await this.prismaService.user.create({
-         data: { username, email, password: await hash(password), displayName: username },
+      const user = await this.prismaService.$transaction(async tx => {
+         const newUser = await tx.user.create({
+            data: {
+               username,
+               email,
+               password: await hash(password),
+               displayName: username,
+            },
+         });
+
+         await tx.conversation.create({
+            data: {
+               type: ConversationType.FAVORITES,
+               visibility: ConversationVisibility.PRIVATE,
+               ownerId: newUser.id,
+               settings: { create: {} },
+               members: {
+                  create: {
+                     userId: newUser.id,
+                     role: ConversationRole.OWNER,
+                  },
+               },
+            },
+         });
+
+         return newUser;
       });
 
       await this.verificationService.sendVerificationToken(user);

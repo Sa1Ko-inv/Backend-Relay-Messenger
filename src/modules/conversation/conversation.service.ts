@@ -64,6 +64,16 @@ export class ConversationService {
       return conversation;
    }
 
+   public async getFavoritesConversation(userId: string) {
+      return await this.prismaService.conversation.findFirst({
+         where: {
+            type: ConversationType.FAVORITES,
+            ownerId: userId,
+         },
+         include: this.conversationInclude,
+      });
+   }
+
    private async findPersonalConversation(currentUserId: string, targetUserId: string) {
       const conversation = await this.prismaService.conversation.findFirst({
          where: {
