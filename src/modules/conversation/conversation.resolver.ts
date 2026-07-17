@@ -5,13 +5,14 @@ import { Authorization } from '@/src/shared/decorators/auth.decorator';
 import { Authorized } from '@/src/shared/decorators/authorized.decorator';
 
 import { ConversationService } from './conversation.service';
+import { ConversationModel } from './models/conversation.model';
 
 @Resolver('Conversation')
 export class ConversationResolver {
    constructor(private readonly conversationService: ConversationService) {}
 
    @Authorization()
-   @Mutation(() => Boolean, { name: 'createPersonalConversation' })
+   @Mutation(() => ConversationModel, { name: 'createPersonalConversation' })
    public async createPersonalConversation(
       @Authorized('id') id: string,
       @Args('data') input: CreatePersonalConversationInput

@@ -23,6 +23,79 @@ input ConfirmNewEmailInput {
   token: String!
 }
 
+type ConversationMemberModel {
+  canDeleteMessages: Boolean!
+  canEditInfo: Boolean!
+  canInvite: Boolean!
+  canManageAdmins: Boolean!
+  canManageMembers: Boolean!
+  canManageSettings: Boolean!
+  canPinMessages: Boolean!
+  canPost: Boolean!
+  conversationId: String!
+  createdAt: DateTime!
+  id: ID!
+  isMuted: Boolean!
+  isPinned: Boolean!
+  joinedAt: DateTime!
+  lastReadMessageId: String
+  role: ConversationRole!
+  updatedAt: DateTime!
+  user: UserModel!
+  userId: String!
+}
+
+type ConversationModel {
+  avatar: String
+  createdAt: DateTime!
+  description: String
+  id: ID!
+  isVerified: Boolean!
+  lastMessageId: String
+  members: [ConversationMemberModel!]!
+  ownerId: String
+  settings: ConversationSettingModel
+  title: String
+  type: ConversationType!
+  updatedAt: DateTime!
+  username: String
+  visibility: ConversationVisibility!
+}
+
+enum ConversationRole {
+  ADMIN
+  MEMBER
+  MODERATOR
+  OWNER
+}
+
+type ConversationSettingModel {
+  allowForward: Boolean!
+  allowMedia: Boolean!
+  allowReactions: Boolean!
+  allowScreenshot: Boolean!
+  allowVoice: Boolean!
+  conversationId: String!
+  createdAt: DateTime!
+  historyVisible: Boolean!
+  id: ID!
+  joinRequestsEnabled: Boolean!
+  slowModeSeconds: Float!
+  updatedAt: DateTime!
+}
+
+enum ConversationType {
+  CHANNEL
+  FAVORITES
+  GROUP
+  PERSONAL
+}
+
+enum ConversationVisibility {
+  PRIVATE
+  PUBLIC
+}
+
 input CreatePersonalConversationInput {
   userId: String!
 }
@@ -75,7 +148,7 @@ type Mutation {
   changeProfileInfo(data: ChangeProfileInfoInput!): Boolean!
   clearSessionCookie: Boolean!
   confirmNewEmail(data: ConfirmNewEmailInput!): Boolean!
-  createPersonalConversation(data: CreatePersonalConversationInput!): Boolean!
+  createPersonalConversation(data: CreatePersonalConversationInput!): ConversationModel!
   createUser(data: CreateUserInput!): Boolean!
   deactivateAccount(data: DeactivateAccountInput!): AuthModel!
   disableTotp: Boolean!

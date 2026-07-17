@@ -1,4 +1,4 @@
-import { Field, ID, ObjectType } from '@nestjs/graphql';
+import { Field, ID, ObjectType, registerEnumType } from '@nestjs/graphql';
 import {
    Conversation,
    ConversationMember,
@@ -8,50 +8,19 @@ import {
    ConversationVisibility,
 } from '@prisma/client';
 
-@ObjectType()
-export class ConversationModel implements Conversation {
-   @Field(() => ID)
-   public id: string;
+import { UserModel } from '@/src/modules/auth/account/models/user.model';
 
-   @Field(() => ConversationType)
-   public type: ConversationType;
+registerEnumType(ConversationRole, {
+   name: 'ConversationRole',
+});
 
-   @Field(() => ConversationVisibility)
-   public visibility: ConversationVisibility;
+registerEnumType(ConversationType, {
+   name: 'ConversationType',
+});
 
-   @Field(() => String, { nullable: true })
-   public title: string;
-
-   @Field(() => String, { nullable: true })
-   public username: string;
-
-   @Field(() => String, { nullable: true })
-   public description: string;
-
-   @Field(() => String, { nullable: true })
-   public avatar: string;
-
-   @Field(() => Boolean)
-   public isVerified: boolean;
-
-   @Field(() => String, { nullable: true })
-   public lastMessageId: string;
-
-   @Field(() => String, { nullable: true })
-   public ownerId: string;
-
-   @Field(() => ConversationSettingModel, { nullable: true })
-   public settings: ConversationSettingModel;
-
-   @Field(() => [ConversationMemberModel])
-   public members: ConversationMemberModel[];
-
-   @Field(() => Date)
-   public createdAt: Date;
-
-   @Field(() => Date)
-   public updatedAt: Date;
-}
+registerEnumType(ConversationVisibility, {
+   name: 'ConversationVisibility',
+});
 
 @ObjectType()
 export class ConversationSettingModel implements ConversationSettings {
@@ -145,6 +114,54 @@ export class ConversationMemberModel implements ConversationMember {
    @Field(() => String)
    public userId: string;
 
-   @Field(() => String)
+   @Field(() => UserModel)
+   public user: UserModel;
+
+   @Field(() => String, { nullable: true })
    public lastReadMessageId: string;
+}
+
+@ObjectType()
+export class ConversationModel implements Conversation {
+   @Field(() => ID)
+   public id: string;
+
+   @Field(() => ConversationType)
+   public type: ConversationType;
+
+   @Field(() => ConversationVisibility)
+   public visibility: ConversationVisibility;
+
+   @Field(() => String, { nullable: true })
+   public title: string;
+
+   @Field(() => String, { nullable: true })
+   public username: string;
+
+   @Field(() => String, { nullable: true })
+   public description: string;
+
+   @Field(() => String, { nullable: true })
+   public avatar: string;
+
+   @Field(() => Boolean)
+   public isVerified: boolean;
+
+   @Field(() => String, { nullable: true })
+   public lastMessageId: string;
+
+   @Field(() => String, { nullable: true })
+   public ownerId: string;
+
+   @Field(() => ConversationSettingModel, { nullable: true })
+   public settings: ConversationSettingModel;
+
+   @Field(() => [ConversationMemberModel])
+   public members: ConversationMemberModel[];
+
+   @Field(() => Date)
+   public createdAt: Date;
+
+   @Field(() => Date)
+   public updatedAt: Date;
 }
