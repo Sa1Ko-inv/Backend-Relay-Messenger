@@ -96,6 +96,11 @@ enum ConversationVisibility {
   PUBLIC
 }
 
+input CreateGroupInput {
+  description: String!
+  title: String!
+}
+
 input CreatePersonalConversationInput {
   userId: String!
 }
@@ -148,6 +153,7 @@ type Mutation {
   changeProfileInfo(data: ChangeProfileInfoInput!): Boolean!
   clearSessionCookie: Boolean!
   confirmNewEmail(data: ConfirmNewEmailInput!): Boolean!
+  createGroupConversation(avatar: Upload, data: CreateGroupInput!): ConversationModel!
   createPersonalConversation(data: CreatePersonalConversationInput!): ConversationModel!
   createUser(data: CreateUserInput!): Boolean!
   deactivateAccount(data: DeactivateAccountInput!): AuthModel!

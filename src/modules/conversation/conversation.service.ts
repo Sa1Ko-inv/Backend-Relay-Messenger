@@ -1,13 +1,25 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+   BadRequestException,
+   ConflictException,
+   Injectable,
+   NotFoundException,
+} from '@nestjs/common';
 import {
    ConversationRole,
    ConversationType,
    ConversationVisibility,
    Prisma,
+   type User,
 } from '@prisma/client';
+import Upload from 'graphql-upload/Upload.mjs';
 
 import { PrismaService } from '@/src/core/prisma/prisma.service';
+import { CreateGroupInput } from '@/src/modules/conversation/inputs/create-group.input';
 import { CreatePersonalConversationInput } from '@/src/modules/conversation/inputs/create-personal-conversation.input';
+import { StorageService } from '@/src/modules/libs/storage/storage.service';
+import { generateInviteCode } from '@/src/shared/utils/generate-invite-code.utils';
+
+const sharp: any = require('sharp');
 
 @Injectable()
 export class ConversationService {
@@ -20,7 +32,10 @@ export class ConversationService {
       },
    } satisfies Prisma.ConversationInclude;
 
-   public constructor(private readonly prismaService: PrismaService) {}
+   public constructor(
+      private readonly prismaService: PrismaService,
+      private readonly storageService: StorageService
+   ) {}
 
    public async createPersonalConversation(
       currentUserId: string,
@@ -65,13 +80,85 @@ export class ConversationService {
    }
 
    public async getFavoritesConversation(userId: string) {
-      return await this.prismaService.conversation.findFirst({
+      const favoritesConversation = await this.prismaService.conversation.findFirst({
          where: {
             type: ConversationType.FAVORITES,
             ownerId: userId,
          },
          include: this.conversationInclude,
       });
+
+      return favoritesConversation;
+   }
+
+   public async createGroupConversation(input: CreateGroupInput, user: User, file?: Upload) {
+      const { title, description } = input;
+
+      const avatarUrl = file ? await this.uploadGroupAvatar(file, user.username) : null;
+
+      const groupConversation = await this.prismaService.conversation.create({
+         data: {
+            type: ConversationType.GROUP,
+            title,
+            description,
+            avatar: avatarUrl,
+            visibility: ConversationVisibility.PRIVATE,
+            ownerId: user.id,
+            settings: { create: {} },
+            members: {
+               create: [
+                  {
+                     userId: user.id,
+                     role: ConversationRole.OWNER,
+                     canPost: true,
+                     canInvite: true,
+                     canEditInfo: true,
+                     canDeleteMessages: true,
+                     canPinMessages: true,
+                     canManageMembers: true,
+                     canManageAdmins: true,
+                     canManageSettings: true,
+                  },
+               ],
+            },
+            invites: {
+               create: {
+                  code: generateInviteCode(),
+                  createdById: user.id,
+               },
+            },
+         },
+         include: this.conversationInclude,
+      });
+
+      return groupConversation;
+   }
+
+   private async uploadGroupAvatar(file: Upload, username: string): Promise<string> {
+      const chunks: Buffer[] = [];
+
+      for await (const chunk of file.createReadStream()) {
+         chunks.push(chunk);
+      }
+
+      const buffer = Buffer.concat(chunks);
+
+      const fileName = `/group/${username}.webp`;
+
+      if (file.filename && file.filename.endsWith('.gif')) {
+         const processedBuffer = await sharp(buffer, { animated: true })
+            .resize(512, 512)
+            .webp()
+            .toBuffer();
+
+         await this.storageService.upload(processedBuffer, fileName, 'image/webp');
+      } else {
+         const processedBuffer = await sharp(buffer).resize(512, 512).webp().toBuffer();
+
+         await this.storageService.upload(processedBuffer, fileName, 'image/webp');
+      }
+
+      return fileName;
    }
 
    private async findPersonalConversation(currentUserId: string, targetUserId: string) {

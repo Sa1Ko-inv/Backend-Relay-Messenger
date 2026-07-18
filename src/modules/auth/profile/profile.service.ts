@@ -1,11 +1,12 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import type { User } from '@prisma/client';
 import Upload from 'graphql-upload/Upload.mjs';
-import sharp from 'sharp';
 
 import { PrismaService } from '@/src/core/prisma/prisma.service';
 import { ChangeProfileInfoInput } from '@/src/modules/auth/profile/inputs/change-profile-info.input';
 import { StorageService } from '@/src/modules/libs/storage/storage.service';
+
+const sharp: any = require('sharp');
 
 @Injectable()
 export class ProfileService {
@@ -34,6 +35,10 @@ export class ProfileService {
             .resize(512, 512)
             .webp()
             .toBuffer();
+
+         await this.storageService.upload(processedBuffer, fileName, 'image/webp');
+      } else {
+         const processedBuffer = await sharp(buffer).resize(512, 512).webp().toBuffer();
 
          await this.storageService.upload(processedBuffer, fileName, 'image/webp');
       }
