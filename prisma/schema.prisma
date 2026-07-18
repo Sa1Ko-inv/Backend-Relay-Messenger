@@ -70,28 +70,58 @@ model Token {
 model Conversation {
   id String @id @default(uuid())
 
-  type       ConversationType
+  // Тип диалога:
+  // PERSONAL - личный чат
+  // GROUP - группа
+  // CHANNEL - канал
+  // FAVORITES - избранное
+  type ConversationType
+
+  // Видимость:
+  // PRIVATE - приватный
+  // PUBLIC - публичный
   visibility ConversationVisibility
 
-  title       String?
-  username    String? @unique
-  description String?
-  avatar      String?
+  // Название (для групп и каналов)
+  title String?
 
+  // Уникальный username для публичной группы/канала
+  username String? @unique
+
+  // Описание группы/канала
+  description String?
+
+  // Аватар группы/канала
+  avatar String?
+
+  // Галочка верификации
   isVerified Boolean @default(false) @map("is_verified")
 
-  lastMessageId String? @map("last_message_id")
+  // Владелец группы/канала
+  // Для PERSONAL обычно null
+  owner   User?   @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  ownerId String? @map("owner_id")
 
-  owner       User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  ownerId     String?  @map("owner_id")
-  lastMessage Message? @relation("ConversationLastMessage", fields: [lastMessageId], references: [id], onDelete: SetNull)
+  // Быстрая ссылка на последнее сообщение
+  lastMessage   Message? @relation("ConversationLastMessage", fields: [lastMessageId], references: [id], onDelete: SetNull)
+  // Последнее сообщение (для списка диалогов)
+  lastMessageId String?  @map("last_message_id")
 
-  settings ConversationSettings?
-  members  ConversationMember[]
-  messages Message[]             @relation("ConversationMessages")
-  invites  ConversationInvite[]
-  calls    Call[]
+  // ==========================
+  // Связи
+  // ==========================
 
+  // Настройки диалога
+  settings       ConversationSettings?
+  // Все участники
+  members        ConversationMember[]
+  // Все сообщения
+  messages       Message[]                   @relation("ConversationMessages")
+  // Ссылки-приглашения
+  invites        ConversationInvite[]
+  // Звонки
+  calls          Call[]
+  // Закрепленные сообщения
   pinnedMessages ConversationPinnedMessage[]
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -105,35 +135,67 @@ model Conversation {
 model ConversationMember {
   id String @id @default(uuid())
 
+  // Роль пользователя
+  // OWNER / ADMIN / MODERATOR / MEMBER
   role ConversationRole
 
-  // Permissions
+  // ==========================
+  // Разрешения
+  // ==========================
 
-  canPost           Boolean @default(false) @map("can_post")
-  canInvite         Boolean @default(false) @map("can_invite")
-  canEditInfo       Boolean @default(false) @map("can_edit_info")
+  // Может публиковать сообщения в канале
+  canPost Boolean @default(false) @map("can_post")
+
+  // Может создавать ссылки-приглашения
+  canInvite Boolean @default(false) @map("can_invite")
+
+  // Может менять название, описание, аватар
+  canEditInfo Boolean @default(false) @map("can_edit_info")
+
+  // Может удалять чужие сообщения
   canDeleteMessages Boolean @default(false) @map("can_delete_messages")
-  canPinMessages    Boolean @default(false) @map("can_pin_messages")
-  canManageMembers  Boolean @default(false) @map("can_manage_members")
-  canManageAdmins   Boolean @default(false) @map("can_manage_admins")
+
+  // Может закреплять сообщения
+  canPinMessages Boolean @default(false) @map("can_pin_messages")
+
+  // Может управлять обычными участниками
+  canManageMembers Boolean @default(false) @map("can_manage_members")
+
+  // Может назначать/снимать администраторов
+  canManageAdmins Boolean @default(false) @map("can_manage_admins")
+
+  // Может менять настройки чата
   canManageSettings Boolean @default(false) @map("can_manage_settings")
 
-  // User settings
+  // ==========================
+  // Личные настройки пользователя
+  // ==========================
 
+  // Пользователь отключил уведомления
   isMuted  Boolean @default(false) @map("is_muted")
+  // Закрепил диалог у себя
   isPinned Boolean @default(false) @map("is_pinned")
 
+  // Когда вступил
   joinedAt DateTime @default(now()) @map("joined_at")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // ==========================
+  // Связи
+  // ==========================
+
+  // Какому диалогу принадлежит запись
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   conversationId String       @map("conversation_id")
 
+  // Какому пользователю принадлежит запись
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String @map("user_id")
 
+  // Последнее прочитанное сообщение
+  // Нужно для непрочитанных сообщений
   lastReadMessage   Message? @relation("LastReadMessage", fields: [lastReadMessageId], references: [id], onDelete: SetNull)
   lastReadMessageId String?  @map("last_read_message_id")
 
@@ -146,16 +208,35 @@ model ConversationMember {
 model ConversationSettings {
   id String @id @default(uuid())
 
-  allowMedia      Boolean @default(true) @map("allow_media")
-  allowVoice      Boolean @default(true) @map("allow_voice")
-  allowReactions  Boolean @default(true) @map("allow_reactions")
-  allowForward    Boolean @default(true) @map("allow_forward")
-  allowScreenshot Boolean @default(true) @map("allow_screenshot")
-  historyVisible  Boolean @default(true) @map("history_visible")
-  slowModeSeconds Int     @default(0) @map("slow_mode_seconds")
+  // Разрешено отправлять изображения/видео
+  allowMedia Boolean @default(true) @map("allow_media")
+  // Разрешены голосовые сообщения
+  allowVoice Boolean @default(true) @map("allow_voice")
 
+  // Разрешены реакции
+  allowReactions Boolean @default(true) @map("allow_reactions")
+
+  // Разрешена пересылка сообщений
+  allowForward Boolean @default(true) @map("allow_forward")
+
+  // Разрешены скриншоты
+  // (актуально для мобильных клиентов)
+  allowScreenshot Boolean @default(true) @map("allow_screenshot")
+
+  // Видна ли история новым участникам
+  historyVisible Boolean @default(true) @map("history_visible")
+
+  // Медленный режим (секунды между сообщениями)
+  slowModeSeconds Int @default(0) @map("slow_mode_seconds")
+
+  // Нужно ли одобрять заявки на вступление
   joinRequestsEnabled Boolean @default(false) @map("join_requests_enabled")
 
+  // ==========================
+  // Связи
+  // ==========================
+
+  // Настройки принадлежат одному диалогу
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   conversationId String       @unique @map("conversation_id")
 
@@ -168,18 +249,30 @@ model ConversationSettings {
 model ConversationInvite {
   id String @id @default(uuid())
 
+  // Код приглашения
   code String @unique
 
+  // Максимальное число использований
+  // null = бесконечно
   maxUses Int? @map("max_uses")
+  // Сколько раз уже использовали
   uses    Int  @default(0) @map("uses")
 
+  // Приглашение отключено
   isRevoked Boolean @default(false) @map("is_revoked")
 
+  // Дата окончания действия
   expiresAt DateTime? @map("expires_at")
 
+  // ==========================
+  // Связи
+  // ==========================
+
+  // Для какого диалога
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   conversationId String       @map("conversation_id")
 
+  // Кто создал приглашение
   createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
   createdById String @map("created_by_id")
 
@@ -194,16 +287,26 @@ model ConversationInvite {
 model ConversationPinnedMessage {
   id String @id @default(uuid())
 
+  // Когда закрепили
   pinnedAt DateTime @default(now()) @map("pinned_at")
 
+  // Позиция закрепа
+  // (если поддерживается несколько закрепов)
   position Int
 
+  // ==========================
+  // Связи
+  // ==========================
+
+  // Какое сообщение закреплено
   message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
   messageId String  @unique @map("message_id")
 
+  // Кто закрепил
   pinnedBy   User   @relation(fields: [pinnedById], references: [id], onDelete: Cascade)
   pinnedById String @map("pinned_by_id")
 
+  // В каком диалоге находится закреп
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   conversationId String       @map("conversation_id")
 
@@ -215,36 +318,61 @@ model ConversationPinnedMessage {
 model Message {
   id String @id @default(uuid())
 
+  // Тип сообщения:
+  // USER - обычное сообщение пользователя
+  // SYSTEM - системное сообщение
   type MessageType
 
+  // Текст сообщения.
+  // Может быть null, если сообщение содержит только файл,
+  // стикер, звонок и т.д.
   content String?
 
+  // Было ли сообщение удалено
   isDeleted Boolean @default(false) @map("is_deleted")
 
+  // Когда сообщение было отредактировано
   editedAt DateTime? @map("edited_at")
 
+  // ==========================
+  // Связи
+  // ==========================
+
+  // Диалог, в котором находится сообщение
   conversation   Conversation @relation("ConversationMessages", fields: [conversationId], references: [id], onDelete: Cascade)
   conversationId String       @map("conversation_id")
 
+  // Автор сообщения
   sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
   senderId String @map("sender_id")
 
+  // Сообщение, на которое ответили
   replyToMessage   Message?  @relation("MessageReplies", fields: [replyToMessageId], references: [id], onDelete: SetNull)
   replyToMessageId String?   @map("reply_to_message_id")
+  // Все ответы на данное сообщение
   repliedMessages  Message[] @relation("MessageReplies")
 
+  // Сообщение, из которого выполнена пересылка
   forwardedFromMessage   Message?  @relation("MessageForward", fields: [forwardedFromMessageId], references: [id], onDelete: SetNull)
   forwardedFromMessageId String?   @map("forwarded_from_message_id")
+  // Все сообщения, пересланные из данного
   forwardedMessages      Message[] @relation("MessageForward")
 
+  // Прикрепленный стикер
   sticker   Sticker? @relation("MessageSticker", fields: [stickerId], references: [id], onDelete: SetNull)
   stickerId String?  @map("sticker_id")
 
+  // Все вложения сообщения
   attachments                Attachment[]
+  // Все реакции на сообщение
   reactions                  Reaction[]
+  // Если сообщение закреплено
   conversationPinnedMessage  ConversationPinnedMessage[]
+  // Если сообщение является последним в диалоге
   lastMessageInConversations Conversation[]              @relation("ConversationLastMessage")
+  // Если сообщение является сообщением о звонке
   call                       Call?                       @relation("CallMessage")
+  // Кто прочитал сообщение последним
   readByMembers              ConversationMember[]        @relation("LastReadMessage")
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -259,27 +387,52 @@ model Message {
 model Attachment {
   id String @id @default(uuid())
 
+  // Тип файла:
+  // IMAGE, VIDEO, AUDIO, FILE
   type    AttachmentType
+  // Назначение файла:
+  // MEDIA, VOICE_MESSAGE, VIDEO_MESSAGE,
+  // FILE, CUSTOM_STICKER и т.д.
   purpose AttachmentPurpose
 
+  // Путь до файла в хранилище
   url String
 
+  // Оригинальное имя файла
   fileName String? @map("file_name")
+  // MIME-тип
+  // image/png
+  // image/webp
+  // video/mp4
+  // audio/ogg
   mimeType String  @map("mime_type")
 
+  // Размер файла (байты)
   size Int
 
+  // Ширина изображения/видео
   width  Int?
+  // Высота изображения/видео
   height Int?
 
+  // Длительность аудио/видео (сек)
   duration Int?
 
+  // ==========================
   // Поведение
+  // ==========================
 
+  // Скрыто под спойлером
   isSpoiler Boolean @default(false) @map("is_spoiler")
 
+  // Время автоудаления файла
   selfDestructAt DateTime? @map("self_destruct_at")
 
+  // ==========================
+  // Связи
+  // ==========================
+
+  // Сообщение-владелец
   message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
   messageId String  @map("message_id")
 
@@ -293,17 +446,25 @@ model Attachment {
 model Reaction {
   id String @id @default(uuid())
 
+  // ==========================
+  // Связи
+  // ==========================
+
+  // Сообщение
   message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
   messageId String  @map("message_id")
 
+  // Кто поставил реакцию
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String @map("user_id")
 
+  // Какая реакция
   emoji   ReactionEmoji @relation(fields: [emojiId], references: [id], onDelete: Restrict)
   emojiId String        @map("emoji_id")
 
   createdAt DateTime @default(now()) @map("created_at")
 
+  // Один пользователь = одна реакция на сообщение
   @@unique([messageId, userId])
   @@index([messageId])
   @@index([userId])
@@ -314,15 +475,22 @@ model Reaction {
 model ReactionEmoji {
   id String @id @default(uuid())
 
+  // Сам emoji
   emoji String
+  // Название реакции
+  // Например "Like"
   name  String?
 
+  // Категория реакции
   category ReactionCategory @default(DEFAULT)
 
+  // Premium-реакция
   isPremium Boolean @default(false) @map("is_premium")
 
+  // Анимация Premium-реакции
   animationUrl String? @map("animation_url")
 
+  // Где используется
   reactions Reaction[]
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -335,21 +503,35 @@ model ReactionEmoji {
 model StickerPack {
   id String @id @default(uuid())
 
+  // Название набора
   title String
 
+  // Уникальная ссылка
+  // relay/addstickers/Animals
   username String? @unique
 
+  // Описание набора
   description String?
 
+  // Официальный набор Relay
   isOfficial Boolean @default(false) @map("is_official")
 
+  // ==========================
+  // Связи
+  // ==========================
+
+  // Автор набора
   author   User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
   authorId String? @map("author_id")
 
+  // Обложка набора
   coverSticker   Sticker? @relation("StickerPackCover", fields: [coverStickerId], references: [id], onDelete: SetNull)
   coverStickerId String?  @unique @map("cover_sticker_id")
 
-  stickers       Sticker[]         @relation("StickerPackStickers")
+  // Все стикеры набора
+  stickers Sticker[] @relation("StickerPackStickers")
+
+  // Пользователи, установившие набор
   installedUsers UserStickerPack[]
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -362,29 +544,43 @@ model StickerPack {
 model Sticker {
   id String @id @default(uuid())
 
+  // Emoji, предлагаемый при вводе
   emoji String?
 
+  // Путь к файлу стикера
   url String
 
-  width Int
-
+  // Размер изображения
+  width  Int
   height Int
 
+  // Размер файла
   size Int
 
+  // Порядок внутри набора
   position Int
 
+  // Premium-стикер
   isPremium Boolean @default(false) @map("is_premium")
 
+  // ==========================
+  // Связи
+  // ==========================
+
+  // Набор стикеров
   pack   StickerPack @relation("StickerPackStickers", fields: [packId], references: [id], onDelete: Cascade)
   packId String      @map("pack_id")
 
-  usedInMessages Message[]    @relation("MessageSticker")
-  coverForPack   StickerPack? @relation("StickerPackCover")
+  // Сообщения, где используется стикер
+  usedInMessages Message[] @relation("MessageSticker")
+
+  // Если выбран обложкой набора
+  coverForPack StickerPack? @relation("StickerPackCover")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // Позиция уникальна внутри набора
   @@unique([packId, position])
   @@index([packId])
   @@map("stickers")
@@ -393,13 +589,17 @@ model Sticker {
 model UserStickerPack {
   id String @id @default(uuid())
 
+  // Порядок набора у пользователя
   position Int
 
+  // Когда установлен
   installedAt DateTime @default(now()) @map("installed_at")
 
+  // Пользователь
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String @map("user_id")
 
+  // Набор
   pack   StickerPack @relation(fields: [packId], references: [id], onDelete: Cascade)
   packId String      @map("pack_id")
 
@@ -412,23 +612,40 @@ model UserStickerPack {
 model Call {
   id String @id @default(uuid())
 
-  type   CallType
+  // Тип звонка:
+  // PRIVATE, GROUP
+  type CallType
+
+  // Текущее состояние:
+  // RINGING, ACTIVE, ENDED...
   status CallStatus
 
+  // Название (при необходимости)
   title String?
 
+  // Когда разговор реально начался
   startedAt DateTime? @map("started_at")
-  endedAt   DateTime? @map("ended_at")
 
+  // Когда закончился
+  endedAt DateTime? @map("ended_at")
+
+  // ==========================
+  // Связи
+  // ==========================
+
+  // Диалог, в котором создан звонок
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   conversationId String       @map("conversation_id")
 
+  // Кто начал звонок
   startedBy   User   @relation("StartedCalls", fields: [startedById], references: [id], onDelete: Cascade)
   startedById String @map("started_by_id")
 
+  // Сообщение "📞 Дмитрий начал звонок"
   message   Message? @relation("CallMessage", fields: [messageId], references: [id], onDelete: SetNull)
   messageId String?  @unique @map("message_id")
 
+  // Все участники звонка
   participants CallParticipant[]
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -443,24 +660,33 @@ model Call {
 model CallParticipant {
   id String @id @default(uuid())
 
+  // Когда подключился
   joinedAt DateTime? @map("joined_at")
+  // Когда отключился
   leftAt   DateTime? @map("left_at")
 
+  // Микрофон выключен
   isMuted         Boolean @default(false) @map("is_muted")
+  // Камера включена
   isCameraEnabled Boolean @default(true) @map("is_camera_enabled")
+  // Демонстрация экрана
   isScreenSharing Boolean @default(false) @map("is_screen_sharing")
 
+  // Подключен ли сейчас к звонку
+  isConnected Boolean @default(false) @map("is_connected")
+
+  // Звонок
   call   Call   @relation(fields: [callId], references: [id], onDelete: Cascade)
   callId String @map("call_id")
 
-  isConnected Boolean @default(false) @map("is_connected")
-
+  // Пользователь
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String @map("user_id")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // Один пользователь не может дважды участвовать
   @@unique([callId, userId])
   @@index([callId])
   @@index([userId])
