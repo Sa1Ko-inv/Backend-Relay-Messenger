@@ -11,6 +11,7 @@ import { FileValidationPipe } from '@/src/shared/pipes/file-validation.pipe';
 
 import { ConversationService } from './conversation.service';
 import { ConversationModel } from './models/conversation.model';
+import { MakeGroupPublicInput } from './inputs/make-group-public.input';
 
 @Resolver('Conversation')
 export class ConversationResolver {
@@ -40,5 +41,14 @@ export class ConversationResolver {
       avatar: Upload
    ) {
       return this.conversationService.createGroupConversation(input, user, avatar);
+   }
+
+   @Authorization()
+   @Mutation(() => ConversationModel, { name: 'makeGroupPublic' })
+   public async makeGroupPublic(
+      @Authorized() user: User,
+      @Args('data') input: MakeGroupPublicInput
+   ) {
+      return this.conversationService.makeGroupPublic(user, input);
    }
 }

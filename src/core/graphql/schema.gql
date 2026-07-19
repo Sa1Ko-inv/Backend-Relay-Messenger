@@ -146,6 +146,11 @@ input LoginInput {
   pin: String
 }
 
+input MakeGroupPublicInput {
+  conversationId: String!
+  username: String
+}
+
 type Mutation {
   changeEmail: Boolean!
   changePassword(data: ChangePasswordInput!): Boolean!
@@ -161,6 +166,7 @@ type Mutation {
   enableTotp(data: EnableTotpInput!): Boolean!
   loginUser(data: LoginInput!): AuthModel!
   logoutUser: Boolean!
+  makeGroupPublic(data: MakeGroupPublicInput!): ConversationModel!
   newEmail(data: NewEmailInput!): Boolean!
   newPassword(data: NewPasswordInput!): Boolean!
   removeProfileAvatar: Boolean!

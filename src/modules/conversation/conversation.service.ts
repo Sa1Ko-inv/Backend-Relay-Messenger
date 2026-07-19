@@ -19,6 +19,8 @@ import { CreatePersonalConversationInput } from '@/src/modules/conversation/inpu
 import { StorageService } from '@/src/modules/libs/storage/storage.service';
 import { generateInviteCode } from '@/src/shared/utils/generate-invite-code.utils';
 
+import { MakeGroupPublicInput } from './inputs/make-group-public.input';
+
 const sharp: any = require('sharp');
 
 @Injectable()
@@ -132,6 +134,71 @@ export class ConversationService {
       });
 
       return groupConversation;
+   }
+
+   public async makeGroupPublic(user: User, input: MakeGroupPublicInput) {
+      const { username, conversationId } = input;
+
+      const normalUsername = username?.trim().toLowerCase();
+
+      const owner = await this.prismaService.conversationMember.findFirst({
+         where: {
+            userId: user.id,
+            conversationId,
+            role: ConversationRole.OWNER,
+         },
+      });
+
+      if (!owner) {
+         throw new BadRequestException('У вас нет прав на изменение видимости группы');
+      }
+
+      const conversation = await this.prismaService.conversation.findUnique({
+         where: { id: conversationId },
+      });
+
+      if (!conversation) {
+         throw new NotFoundException('Группа не найдена');
+      }
+
+      if (conversation.type !== ConversationType.GROUP) {
+         throw new BadRequestException('Это не группа');
+      }
+
+      if (conversation.visibility === ConversationVisibility.PUBLIC) {
+         throw new BadRequestException('Группа уже публичная');
+      }
+
+      if (username) {
+         const usernameExists = await this.prismaService.conversation.findUnique({
+            where: {
+               username: normalUsername,
+            },
+         });
+
+         if (usernameExists) {
+            throw new ConflictException('Username уже занят');
+         }
+
+         const makeGroupPublic = await this.prismaService.conversation.update({
+            where: { id: conversationId },
+            data: {
+               visibility: ConversationVisibility.PUBLIC,
+               username: username,
+            },
+            include: this.conversationInclude,
+         });
+         return makeGroupPublic;
+      } else {
+         const makeGroupPublic = await this.prismaService.conversation.update({
+            where: { id: conversationId },
+            data: {
+               visibility: ConversationVisibility.PUBLIC,
+            },
+            include: this.conversationInclude,
+         });
+         return makeGroupPublic;
+      }
    }
 
    private async uploadGroupAvatar(file: Upload, username: string): Promise<string> {
