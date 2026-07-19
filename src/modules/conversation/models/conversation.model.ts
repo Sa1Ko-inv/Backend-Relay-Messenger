@@ -1,6 +1,7 @@
 import { Field, ID, ObjectType, registerEnumType } from '@nestjs/graphql';
 import {
    Conversation,
+   ConversationInvite,
    ConversationMember,
    ConversationRole,
    ConversationSettings,
@@ -122,6 +123,42 @@ export class ConversationMemberModel implements ConversationMember {
 }
 
 @ObjectType()
+export class ConversationInviteModel implements ConversationInvite {
+   @Field(() => ID)
+   public id: string;
+
+   @Field(() => String)
+   public code: string;
+
+   @Field(() => Number, { nullable: true })
+   public maxUses: number;
+
+   @Field(() => Number)
+   public uses: number;
+
+   @Field(() => Boolean)
+   public isRevoked: boolean;
+
+   @Field(() => Date, { nullable: true })
+   public expiresAt: Date;
+
+   @Field(() => Date)
+   public createdAt: Date;
+
+   @Field(() => Date)
+   public updatedAt: Date;
+
+   @Field(() => String)
+   public conversationId: string;
+
+   @Field(() => String)
+   public createdById: string;
+
+   @Field(() => UserModel)
+   public createdBy: UserModel;
+}
+
+@ObjectType()
 export class ConversationModel implements Conversation {
    @Field(() => ID)
    public id: string;
@@ -137,6 +174,9 @@ export class ConversationModel implements Conversation {
 
    @Field(() => String, { nullable: true })
    public username: string;
+
+   @Field(() => String, { nullable: true })
+   public usernameLower: string;
 
    @Field(() => String, { nullable: true })
    public description: string;
@@ -158,6 +198,9 @@ export class ConversationModel implements Conversation {
 
    @Field(() => [ConversationMemberModel])
    public members: ConversationMemberModel[];
+
+   @Field(() => [ConversationInviteModel])
+   public invites: ConversationInviteModel[];
 
    @Field(() => Date)
    public createdAt: Date;

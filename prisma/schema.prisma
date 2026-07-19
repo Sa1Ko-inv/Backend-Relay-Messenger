@@ -85,8 +85,10 @@ model Conversation {
   // Название (для групп и каналов)
   title String?
 
-  // Уникальный username для публичной группы/канала
-  username String? @unique
+  // username для публичной группы/канала и его отображении
+  username      String?
+  // для проверки на уникальность
+  usernameLower String? @unique @map("username_lower")
 
   // Описание группы/канала
   description String?

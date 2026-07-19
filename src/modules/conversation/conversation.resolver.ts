@@ -12,6 +12,7 @@ import { FileValidationPipe } from '@/src/shared/pipes/file-validation.pipe';
 import { ConversationService } from './conversation.service';
 import { ConversationModel } from './models/conversation.model';
 import { MakeGroupPublicInput } from './inputs/make-group-public.input';
+import { ChangeConversationUsernameInput } from './inputs/change-conversation-username.input';
 
 @Resolver('Conversation')
 export class ConversationResolver {
@@ -50,5 +51,14 @@ export class ConversationResolver {
       @Args('data') input: MakeGroupPublicInput
    ) {
       return this.conversationService.makeGroupPublic(user, input);
+   }
+
+   @Authorization()
+   @Mutation(() => ConversationModel, { name: 'changeConversationUsername' })
+   public async changeConversationUsername(
+      @Authorized() user: User,
+      @Args('data') input: ChangeConversationUsernameInput
+   ) {
+      return this.conversationService.changeConversationUsername(user, input);
    }
 }

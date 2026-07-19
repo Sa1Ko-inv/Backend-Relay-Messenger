@@ -8,6 +8,11 @@ type AuthModel {
   user: UserModel
 }
 
+input ChangeConversationUsernameInput {
+  conversationId: String!
+  username: String!
+}
+
 input ChangePasswordInput {
   newPassword: String!
   oldPassword: String!
@@ -21,6 +26,20 @@ input ChangeProfileInfoInput {
 
 input ConfirmNewEmailInput {
   token: String!
+}
+
+type ConversationInviteModel {
+  code: String!
+  conversationId: String!
+  createdAt: DateTime!
+  createdBy: UserModel!
+  createdById: String!
+  expiresAt: DateTime
+  id: ID!
+  isRevoked: Boolean!
+  maxUses: Float
+  updatedAt: DateTime!
+  uses: Float!
 }
 
 type ConversationMemberModel {
@@ -50,6 +69,7 @@ type ConversationModel {
   createdAt: DateTime!
   description: String
   id: ID!
+  invites: [ConversationInviteModel!]!
   isVerified: Boolean!
   lastMessageId: String
   members: [ConversationMemberModel!]!
@@ -59,6 +79,7 @@ type ConversationModel {
   type: ConversationType!
   updatedAt: DateTime!
   username: String
+  usernameLower: String
   visibility: ConversationVisibility!
 }
 
@@ -152,6 +173,7 @@ input MakeGroupPublicInput {
 }
 
 type Mutation {
+  changeConversationUsername(data: ChangeConversationUsernameInput!): ConversationModel!
   changeEmail: Boolean!
   changePassword(data: ChangePasswordInput!): Boolean!
   changeProfileAvatar(avatar: Upload!): Boolean!

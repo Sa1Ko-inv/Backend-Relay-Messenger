@@ -19,6 +19,7 @@ import { CreatePersonalConversationInput } from '@/src/modules/conversation/inpu
 import { StorageService } from '@/src/modules/libs/storage/storage.service';
 import { generateInviteCode } from '@/src/shared/utils/generate-invite-code.utils';
 
+import { ChangeConversationUsernameInput } from './inputs/change-conversation-username.input';
 import { MakeGroupPublicInput } from './inputs/make-group-public.input';
 
 const sharp: any = require('sharp');
@@ -30,6 +31,11 @@ export class ConversationService {
       members: {
          include: {
             user: true,
+         },
+      },
+      invites: {
+         include: {
+            createdBy: true,
          },
       },
    } satisfies Prisma.ConversationInclude;
@@ -139,8 +145,6 @@ export class ConversationService {
    public async makeGroupPublic(user: User, input: MakeGroupPublicInput) {
       const { username, conversationId } = input;
 
-      const normalUsername = username?.trim().toLowerCase();
-
       const owner = await this.prismaService.conversationMember.findFirst({
          where: {
             userId: user.id,
@@ -150,7 +154,7 @@ export class ConversationService {
       });
 
       if (!owner) {
-         throw new BadRequestException('У вас нет прав на изменение видимости группы');
+         throw new BadRequestException('Недостаточно прав');
       }
 
       const conversation = await this.prismaService.conversation.findUnique({
@@ -170,13 +174,15 @@ export class ConversationService {
       }
 
       if (username) {
+         const normalUsername = username?.trim().toLowerCase();
+
          const usernameExists = await this.prismaService.conversation.findUnique({
             where: {
-               username: normalUsername,
+               usernameLower: normalUsername,
             },
          });
 
-         if (usernameExists) {
+         if (usernameExists && usernameExists.id !== conversationId) {
             throw new ConflictException('Username уже занят');
          }
 
@@ -185,6 +191,7 @@ export class ConversationService {
             data: {
                visibility: ConversationVisibility.PUBLIC,
                username: username,
+               usernameLower: normalUsername,
             },
             include: this.conversationInclude,
          });
@@ -199,6 +206,65 @@ export class ConversationService {
          });
          return makeGroupPublic;
       }
+   }
+
+   public async changeConversationUsername(
+      user: User,
+      input: ChangeConversationUsernameInput
+   ) {
+      const { username, conversationId } = input;
+
+      const owner = await this.prismaService.conversationMember.findFirst({
+         where: {
+            userId: user.id,
+            conversationId,
+            role: ConversationRole.OWNER,
+         },
+      });
+
+      if (!owner) {
+         throw new BadRequestException('Недостаточно прав');
+      }
+
+      const conversation = await this.prismaService.conversation.findUnique({
+         where: { id: conversationId },
+      });
+
+      if (!conversation) {
+         throw new NotFoundException('Группа не найдена');
+      }
+
+      if (conversation.type !== ConversationType.GROUP) {
+         throw new BadRequestException('Это не группа');
+      }
+
+      if (conversation.visibility === ConversationVisibility.PRIVATE) {
+         throw new BadRequestException(
+            'У группы нет публичного имени пользователя. Сначала сделайте группу публичной, а затем измените имя пользователя'
+         );
+      }
+
+      const normalUsername = username?.trim().toLowerCase();
+
+      const usernameExists = await this.prismaService.conversation.findUnique({
+         where: {
+            usernameLower: normalUsername,
+         },
+      });
+
+      if (usernameExists && usernameExists.id !== conversationId) {
+         throw new ConflictException('Username уже занят');
+      }
+
+      const changeConversationUsername = await this.prismaService.conversation.update({
+         where: { id: conversationId },
+         data: {
+            username: username,
+            usernameLower: normalUsername,
+         },
+         include: this.conversationInclude,
+      });
+      return changeConversationUsername;
    }
 
    private async uploadGroupAvatar(file: Upload, username: string): Promise<string> {
