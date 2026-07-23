@@ -20,6 +20,7 @@ import { StorageService } from '@/src/modules/libs/storage/storage.service';
 import { generateInviteCode } from '@/src/shared/utils/generate-invite-code.utils';
 
 import { ChangeConversationUsernameInput } from './inputs/change-conversation-username.input';
+import { CreateChannelInput } from './inputs/create-channel.input';
 import { MakeGroupPublicInput } from './inputs/make-group-public.input';
 
 const sharp: any = require('sharp');
@@ -102,7 +103,7 @@ export class ConversationService {
    public async createGroupConversation(input: CreateGroupInput, user: User, file?: Upload) {
       const { title, description } = input;
 
-      const avatarUrl = file ? await this.uploadGroupAvatar(file, user.username) : null;
+      const avatarUrl = file ? await this.uploadConversationAvatar(file, user.username) : null;
 
       const groupConversation = await this.prismaService.conversation.create({
          data: {
@@ -267,7 +268,74 @@ export class ConversationService {
       return changeConversationUsername;
    }
 
-   private async uploadGroupAvatar(file: Upload, username: string): Promise<string> {
+   public async createChannelConversation(
+      input: CreateChannelInput,
+      user: User,
+      file?: Upload
+   ) {
+      const { visibility, title, description, username } = input;
+
+      const avatarUrl = file ? await this.uploadConversationAvatar(file, user.username) : null;
+
+      const normalUsername = username?.trim().toLowerCase();
+
+      if (username) {
+         const usernameExists = await this.prismaService.conversation.findUnique({
+            where: {
+               usernameLower: normalUsername,
+            },
+         });
+
+         if (usernameExists) {
+            throw new ConflictException('Username уже занят');
+         }
+      }
+
+      if (visibility === ConversationVisibility.PRIVATE && username) {
+         throw new BadRequestException('Частный канал не может иметь публичный username');
+      }
+
+      const channelConversation = await this.prismaService.conversation.create({
+         data: {
+            type: ConversationType.CHANNEL,
+            title,
+            description,
+            avatar: avatarUrl,
+            visibility,
+            username: username,
+            usernameLower: normalUsername,
+            ownerId: user.id,
+            settings: { create: {} },
+            members: {
+               create: [
+                  {
+                     userId: user.id,
+                     role: ConversationRole.OWNER,
+                     canPost: true,
+                     canInvite: true,
+                     canEditInfo: true,
+                     canDeleteMessages: true,
+                     canPinMessages: true,
+                     canManageMembers: true,
+                     canManageAdmins: true,
+                     canManageSettings: true,
+                  },
+               ],
+            },
+            invites: {
+               create: {
+                  code: generateInviteCode(),
+                  createdById: user.id,
+               },
+            },
+         },
+         include: this.conversationInclude,
+      });
+
+      return channelConversation;
+   }
+
+   private async uploadConversationAvatar(file: Upload, username: string): Promise<string> {
       const chunks: Buffer[] = [];
 
       for await (const chunk of file.createReadStream()) {

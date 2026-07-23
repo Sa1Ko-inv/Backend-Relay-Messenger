@@ -117,6 +117,13 @@ enum ConversationVisibility {
   PUBLIC
 }
 
+input CreateChannelInput {
+  description: String
+  title: String!
+  username: String
+  visibility: ConversationVisibility!
+}
+
 input CreateGroupInput {
   description: String!
   title: String!
@@ -180,6 +187,7 @@ type Mutation {
   changeProfileInfo(data: ChangeProfileInfoInput!): Boolean!
   clearSessionCookie: Boolean!
   confirmNewEmail(data: ConfirmNewEmailInput!): Boolean!
+  createChannelConversation(avatar: Upload, data: CreateChannelInput!): ConversationModel!
   createGroupConversation(avatar: Upload, data: CreateGroupInput!): ConversationModel!
   createPersonalConversation(data: CreatePersonalConversationInput!): ConversationModel!
   createUser(data: CreateUserInput!): Boolean!

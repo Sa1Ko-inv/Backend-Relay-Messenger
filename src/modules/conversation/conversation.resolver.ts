@@ -13,6 +13,7 @@ import { ConversationService } from './conversation.service';
 import { ConversationModel } from './models/conversation.model';
 import { MakeGroupPublicInput } from './inputs/make-group-public.input';
 import { ChangeConversationUsernameInput } from './inputs/change-conversation-username.input';
+import { CreateChannelInput } from './inputs/create-channel.input';
 
 @Resolver('Conversation')
 export class ConversationResolver {
@@ -60,5 +61,16 @@ export class ConversationResolver {
       @Args('data') input: ChangeConversationUsernameInput
    ) {
       return this.conversationService.changeConversationUsername(user, input);
+   }
+
+   @Authorization()
+   @Mutation(() => ConversationModel, { name: 'createChannelConversation' })
+   public async createChannelConversation(
+      @Authorized() user: User,
+      @Args('data') input: CreateChannelInput,
+      @Args('avatar', { type: () => GraphQLUpload, nullable: true }, FileValidationPipe)
+      avatar: Upload
+   ) {
+      return this.conversationService.createChannelConversation(input, user, avatar);
    }
 }
