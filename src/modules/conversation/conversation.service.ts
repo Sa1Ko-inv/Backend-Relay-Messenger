@@ -1,6 +1,7 @@
 import {
    BadRequestException,
    ConflictException,
+   ForbiddenException,
    Injectable,
    NotFoundException,
 } from '@nestjs/common';
@@ -146,25 +147,9 @@ export class ConversationService {
    public async makeGroupPublic(user: User, input: MakeGroupPublicInput) {
       const { username, conversationId } = input;
 
-      const owner = await this.prismaService.conversationMember.findFirst({
-         where: {
-            userId: user.id,
-            conversationId,
-            role: ConversationRole.OWNER,
-         },
-      });
+      await this.getOwnerConversation(conversationId, user.id);
 
-      if (!owner) {
-         throw new BadRequestException('Недостаточно прав');
-      }
-
-      const conversation = await this.prismaService.conversation.findUnique({
-         where: { id: conversationId },
-      });
-
-      if (!conversation) {
-         throw new NotFoundException('Группа не найдена');
-      }
+      const conversation = await this.getConversationOrThrow(conversationId);
 
       if (conversation.type !== ConversationType.GROUP) {
          throw new BadRequestException('Это не группа');
@@ -174,39 +159,21 @@ export class ConversationService {
          throw new BadRequestException('Группа уже публичная');
       }
 
+      let usernameLower: string | null = null;
+
       if (username) {
-         const normalUsername = username?.trim().toLowerCase();
-
-         const usernameExists = await this.prismaService.conversation.findUnique({
-            where: {
-               usernameLower: normalUsername,
-            },
-         });
-
-         if (usernameExists && usernameExists.id !== conversationId) {
-            throw new ConflictException('Username уже занят');
-         }
-
-         const makeGroupPublic = await this.prismaService.conversation.update({
-            where: { id: conversationId },
-            data: {
-               visibility: ConversationVisibility.PUBLIC,
-               username: username,
-               usernameLower: normalUsername,
-            },
-            include: this.conversationInclude,
-         });
-         return makeGroupPublic;
-      } else {
-         const makeGroupPublic = await this.prismaService.conversation.update({
-            where: { id: conversationId },
-            data: {
-               visibility: ConversationVisibility.PUBLIC,
-            },
-            include: this.conversationInclude,
-         });
-         return makeGroupPublic;
+         usernameLower = await this.ensureUsernameAvailable(username, conversationId);
       }
+
+      return await this.prismaService.conversation.update({
+         where: { id: conversationId },
+         data: {
+            visibility: ConversationVisibility.PUBLIC,
+            username,
+            usernameLower,
+         },
+         include: this.conversationInclude,
+      })
    }
 
    public async changeConversationUsername(
@@ -215,25 +182,9 @@ export class ConversationService {
    ) {
       const { username, conversationId } = input;
 
-      const owner = await this.prismaService.conversationMember.findFirst({
-         where: {
-            userId: user.id,
-            conversationId,
-            role: ConversationRole.OWNER,
-         },
-      });
+      await this.getOwnerConversation(conversationId, user.id);
 
-      if (!owner) {
-         throw new BadRequestException('Недостаточно прав');
-      }
-
-      const conversation = await this.prismaService.conversation.findUnique({
-         where: { id: conversationId },
-      });
-
-      if (!conversation) {
-         throw new NotFoundException('Группа не найдена');
-      }
+      const conversation = await this.getConversationOrThrow(conversationId);
 
       if (conversation.type !== ConversationType.GROUP) {
          throw new BadRequestException('Это не группа');
@@ -245,23 +196,13 @@ export class ConversationService {
          );
       }
 
-      const normalUsername = username?.trim().toLowerCase();
-
-      const usernameExists = await this.prismaService.conversation.findUnique({
-         where: {
-            usernameLower: normalUsername,
-         },
-      });
-
-      if (usernameExists && usernameExists.id !== conversationId) {
-         throw new ConflictException('Username уже занят');
-      }
+      const usernameLower = await this.ensureUsernameAvailable(username, conversationId);
 
       const changeConversationUsername = await this.prismaService.conversation.update({
          where: { id: conversationId },
          data: {
-            username: username,
-            usernameLower: normalUsername,
+            username,
+            usernameLower,
          },
          include: this.conversationInclude,
       });
@@ -275,25 +216,13 @@ export class ConversationService {
    ) {
       const { visibility, title, description, username } = input;
 
-      const avatarUrl = file ? await this.uploadConversationAvatar(file, user.username) : null;
-
-      const normalUsername = username?.trim().toLowerCase();
-
-      if (username) {
-         const usernameExists = await this.prismaService.conversation.findUnique({
-            where: {
-               usernameLower: normalUsername,
-            },
-         });
-
-         if (usernameExists) {
-            throw new ConflictException('Username уже занят');
-         }
-      }
-
       if (visibility === ConversationVisibility.PRIVATE && username) {
          throw new BadRequestException('Частный канал не может иметь публичный username');
       }
+
+      const usernameLower = username ? await this.ensureUsernameAvailable(username) : null;
+
+      const avatarUrl = file ? await this.uploadConversationAvatar(file, user.username) : null;
 
       const channelConversation = await this.prismaService.conversation.create({
          data: {
@@ -302,8 +231,8 @@ export class ConversationService {
             description,
             avatar: avatarUrl,
             visibility,
-            username: username,
-            usernameLower: normalUsername,
+            username,
+            usernameLower,
             ownerId: user.id,
             settings: { create: {} },
             members: {
@@ -393,5 +322,52 @@ export class ConversationService {
       }
 
       return null;
+   }
+
+   private async getConversationOrThrow(conversationId: string) {
+      const conversation = await this.prismaService.conversation.findUnique({
+         where: { id: conversationId },
+      });
+
+      if (!conversation) {
+         throw new NotFoundException('Диалог не найден');
+      }
+
+      return conversation;
+   }
+
+   private async getOwnerConversation(conversationId: string, userId: string) {
+      const owner = await this.prismaService.conversationMember.findFirst({
+         where: {
+            userId,
+            conversationId,
+            role: ConversationRole.OWNER,
+         },
+      });
+
+      if (!owner) {
+         throw new ForbiddenException('Недостаточно прав');
+      }
+
+      return owner;
+   }
+
+   private async ensureUsernameAvailable(
+      username: string,
+      conversationId?: string
+   ): Promise<string> {
+      const usernameLower = username.trim().toLowerCase();
+
+      const existingConversation = await this.prismaService.conversation.findUnique({
+         where: {
+            usernameLower,
+         },
+      });
+
+      if (existingConversation && existingConversation.id !== conversationId) {
+         throw new ConflictException('Username уже занят');
+      }
+
+      return usernameLower;
    }
 }
