@@ -23,6 +23,8 @@ import { generateInviteCode } from '@/src/shared/utils/generate-invite-code.util
 import { ChangeConversationUsernameInput } from './inputs/change-conversation-username.input';
 import { CreateChannelInput } from './inputs/create-channel.input';
 import { MakeGroupPublicInput } from './inputs/make-group-public.input';
+import { UpdateConversationInput } from './inputs/update-conversation.input';
+import { WorkAvatarInput } from './inputs/work-avatar.input';
 
 const sharp: any = require('sharp');
 
@@ -173,7 +175,7 @@ export class ConversationService {
             usernameLower,
          },
          include: this.conversationInclude,
-      })
+      });
    }
 
    public async changeConversationUsername(
@@ -264,7 +266,103 @@ export class ConversationService {
       return channelConversation;
    }
 
-   private async uploadConversationAvatar(file: Upload, username: string): Promise<string> {
+   public async updateConversation(user: User, input: UpdateConversationInput) {
+      const { conversationId, title, description } = input;
+
+      const conversation = await this.getConversationOrThrow(conversationId);
+
+      if (
+         conversation.type === ConversationType.PERSONAL ||
+         conversation.type === ConversationType.FAVORITES
+      ) {
+         throw new BadRequestException('Нельзя изменить информацию данного диалога');
+      }
+
+      await this.ensureCanEditConversation(conversationId, user.id);
+
+      
+      if (title === undefined && description === undefined) {
+         throw new BadRequestException('Не переданы поля для изменения');
+      }
+
+      const updatedConversation = await this.prismaService.conversation.update({
+         where: { id: conversationId },
+         data: {
+            title,
+            description,
+         },
+         include: this.conversationInclude,
+      });
+
+      return updatedConversation;
+   }
+
+   public async changeConversationAvatar(user: User, input: WorkAvatarInput, file: Upload) {
+      const { conversationId } = input;
+
+      const conversation = await this.getConversationOrThrow(conversationId);
+
+      await this.ensureCanEditConversation(conversationId, user.id);
+
+      if (
+         conversation.type === ConversationType.PERSONAL ||
+         conversation.type === ConversationType.FAVORITES
+      ) {
+         throw new BadRequestException('Нельзя изменить информацию данного диалога');
+      }
+
+      if (conversation.avatar) {
+         await this.storageService.remove(conversation.avatar);
+      }
+
+      const avatarUrl = await this.uploadConversationAvatar(file, conversation.id);
+
+      const updatedConversation = await this.prismaService.conversation.update({
+         where: { id: conversationId },
+         data: {
+            avatar: avatarUrl,
+         },
+         include: this.conversationInclude,
+      });
+
+      return updatedConversation;
+   }
+
+   public async removeConversationAvatar(user: User, input: WorkAvatarInput) {
+      const { conversationId } = input;
+      
+      await this.ensureCanEditConversation(conversationId, user.id);
+
+      const conversation = await this.getConversationOrThrow(conversationId);
+
+      if (
+         conversation.type === ConversationType.PERSONAL ||
+         conversation.type === ConversationType.FAVORITES
+      ) {
+         throw new BadRequestException('Нельзя изменить информацию данного диалога');
+      }
+
+      if (!conversation.avatar) {
+         throw new BadRequestException('У диалога нет аватара');
+      }
+
+      await this.storageService.remove(conversation.avatar);
+
+      const updatedConversation = await this.prismaService.conversation.update({
+         where: { id: conversationId },
+         data: {
+            avatar: null,
+         },
+         include: this.conversationInclude,
+      });
+
+      return updatedConversation;
+   }
+
+   private async uploadConversationAvatar(
+      file: Upload,
+      conversationId: string
+   ): Promise<string> {
       const chunks: Buffer[] = [];
 
       for await (const chunk of file.createReadStream()) {
@@ -273,7 +371,7 @@ export class ConversationService {
 
       const buffer = Buffer.concat(chunks);
 
-      const fileName = `/group/${username}.webp`;
+      const fileName = `/conversation/${conversationId}-${Date.now()}.webp`;
 
       if (file.filename && file.filename.endsWith('.gif')) {
          const processedBuffer = await sharp(buffer, { animated: true })
@@ -324,6 +422,7 @@ export class ConversationService {
       return null;
    }
 
+   // На данный момент метод используется для проверки существования диалога и получения его данных.
    private async getConversationOrThrow(conversationId: string) {
       const conversation = await this.prismaService.conversation.findUnique({
          where: { id: conversationId },
@@ -336,6 +435,7 @@ export class ConversationService {
       return conversation;
    }
 
+   // Проверяет, является ли пользователь владельцем диалога. Если нет, выбрасывает исключение ForbiddenException.
    private async getOwnerConversation(conversationId: string, userId: string) {
       const owner = await this.prismaService.conversationMember.findFirst({
          where: {
@@ -352,6 +452,7 @@ export class ConversationService {
       return owner;
    }
 
+   // Проверяет, занят ли username.
    private async ensureUsernameAvailable(
       username: string,
       conversationId?: string
@@ -369,5 +470,30 @@ export class ConversationService {
       }
 
       return usernameLower;
+   }
+
+   // Проверяет, может ли пользователь редактировать диалог. Если нет, выбрасывает исключение ForbiddenException.
+   private async ensureCanEditConversation(conversationId: string, userId: string) {
+      const member = await this.prismaService.conversationMember.findFirst({
+         where: {
+            conversationId,
+            userId,
+            OR: [
+               {
+                  role: ConversationRole.OWNER,
+               },
+               {
+                  role: ConversationRole.ADMIN,
+                  canEditInfo: true,
+               },
+            ],
+         },
+      });
+
+      if (!member) {
+         throw new ForbiddenException('Недостаточно прав для редактирования диалога');
+      }
+
+      return member;
    }
 }
