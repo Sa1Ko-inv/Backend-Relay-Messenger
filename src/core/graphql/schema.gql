@@ -8,11 +8,6 @@ type AuthModel {
   user: UserModel
 }
 
-input ChangeConversationUsernameInput {
-  conversationId: String!
-  username: String!
-}
-
 input ChangePasswordInput {
   newPassword: String!
   oldPassword: String!
@@ -180,7 +175,7 @@ input MakeGroupPublicInput {
 }
 
 type Mutation {
-  changeConversationUsername(data: ChangeConversationUsernameInput!): ConversationModel!
+  changeConversationUsername(avatar: Upload, data: WorkAvatarInput!): ConversationModel!
   changeEmail: Boolean!
   changePassword(data: ChangePasswordInput!): Boolean!
   changeProfileAvatar(avatar: Upload!): Boolean!
@@ -199,9 +194,11 @@ type Mutation {
   makeGroupPublic(data: MakeGroupPublicInput!): ConversationModel!
   newEmail(data: NewEmailInput!): Boolean!
   newPassword(data: NewPasswordInput!): Boolean!
+  removeConversationAvatar(data: WorkAvatarInput!): ConversationModel!
   removeProfileAvatar: Boolean!
   removeSession(id: String!): Boolean!
   resetPassword(data: ResetPasswordInput!): Boolean!
+  updateConversation(data: UpdateConversationInput!): ConversationModel!
   verifyEmailAccount(data: VerificationInput!): AuthModel!
 }
 
@@ -246,6 +243,12 @@ type TotpModel {
   secret: String!
 }
 
+input UpdateConversationInput {
+  conversationId: String!
+  description: String
+  title: String
+}
+
 """The `Upload` scalar type represents a file upload."""
 scalar Upload
 
@@ -270,4 +273,8 @@ type UserModel {
 
 input VerificationInput {
   token: String!
+}
+
+input WorkAvatarInput {
+  conversationId: String!
 }

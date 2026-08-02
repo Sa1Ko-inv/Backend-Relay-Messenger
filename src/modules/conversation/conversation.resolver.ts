@@ -5,15 +5,17 @@ import Upload from 'graphql-upload/Upload.mjs';
 
 import { CreateGroupInput } from '@/src/modules/conversation/inputs/create-group.input';
 import { CreatePersonalConversationInput } from '@/src/modules/conversation/inputs/create-personal-conversation.input';
+import { UpdateConversationInput } from '@/src/modules/conversation/inputs/update-conversation.input';
+import { WorkAvatarInput } from '@/src/modules/conversation/inputs/work-avatar.input';
 import { Authorization } from '@/src/shared/decorators/auth.decorator';
 import { Authorized } from '@/src/shared/decorators/authorized.decorator';
 import { FileValidationPipe } from '@/src/shared/pipes/file-validation.pipe';
 
 import { ConversationService } from './conversation.service';
-import { ConversationModel } from './models/conversation.model';
-import { MakeGroupPublicInput } from './inputs/make-group-public.input';
 import { ChangeConversationUsernameInput } from './inputs/change-conversation-username.input';
 import { CreateChannelInput } from './inputs/create-channel.input';
+import { MakeGroupPublicInput } from './inputs/make-group-public.input';
+import { ConversationModel } from './models/conversation.model';
 
 @Resolver('Conversation')
 export class ConversationResolver {
@@ -72,5 +74,34 @@ export class ConversationResolver {
       avatar: Upload
    ) {
       return this.conversationService.createChannelConversation(input, user, avatar);
+   }
+
+   @Authorization()
+   @Mutation(() => ConversationModel, { name: 'updateConversation' })
+   public async updateConversation(
+      @Authorized() user: User,
+      @Args('data') input: UpdateConversationInput
+   ) {
+      return this.conversationService.updateConversation(user, input);
+   }
+
+   @Authorization()
+   @Mutation(() => ConversationModel, { name: 'changeConversationUsername' })
+   public async changeConversationAvatar(
+      @Authorized() user: User,
+      @Args('data') input: WorkAvatarInput,
+      @Args('avatar', { type: () => GraphQLUpload, nullable: true }, FileValidationPipe)
+      avatar: Upload
+   ) {
+      return this.conversationService.changeConversationAvatar(user, input, avatar);
+   }
+
+   @Authorization()
+   @Mutation(() => ConversationModel, { name: 'removeConversationAvatar' })
+   public async removeConversationAvatar(
+      @Authorized() user: User,
+      @Args('data') input: WorkAvatarInput
+   ) {
+      return this.conversationService.removeConversationAvatar(user, input);
    }
 }
