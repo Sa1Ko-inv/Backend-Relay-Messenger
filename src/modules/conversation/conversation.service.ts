@@ -22,6 +22,7 @@ import { generateInviteCode } from '@/src/shared/utils/generate-invite-code.util
 
 import { ChangeConversationUsernameInput } from './inputs/change-conversation-username.input';
 import { CreateChannelInput } from './inputs/create-channel.input';
+import { FindConversationInput } from './inputs/find-conversation.input';
 import { MakeGroupPublicInput } from './inputs/make-group-public.input';
 import { UpdateConversationInput } from './inputs/update-conversation.input';
 import { WorkAvatarInput } from './inputs/work-avatar.input';
@@ -32,14 +33,33 @@ const sharp: any = require('sharp');
 export class ConversationService {
    private readonly conversationInclude = {
       settings: true,
+
       members: {
          include: {
-            user: true,
+            user: {
+               select: {
+                  id: true,
+                  username: true,
+                  displayName: true,
+                  avatar: true,
+                  bio: true,
+                  isVerified: true,
+                  lastSeenAt: true,
+               },
+            },
          },
       },
+
       invites: {
          include: {
-            createdBy: true,
+            createdBy: {
+               select: {
+                  id: true,
+                  username: true,
+                  displayName: true,
+                  avatar: true,
+               },
+            },
          },
       },
    } satisfies Prisma.ConversationInclude;
@@ -271,16 +291,16 @@ export class ConversationService {
 
       const conversation = await this.getConversationOrThrow(conversationId);
 
-      if (
-         conversation.type === ConversationType.PERSONAL ||
-         conversation.type === ConversationType.FAVORITES
-      ) {
-         throw new BadRequestException('Нельзя изменить информацию данного диалога');
+      if (conversation.type === ConversationType.PERSONAL) {
+         throw new BadRequestException('Нельзя изменить информацию у персонального диалога');
+      }
+
+      if (conversation.type === ConversationType.FAVORITES) {
+         throw new BadRequestException('Нельзя изменить информацию у избранного');
       }
 
       await this.ensureCanEditConversation(conversationId, user.id);
 
-      
       if (title === undefined && description === undefined) {
          throw new BadRequestException('Не переданы поля для изменения');
       }
@@ -304,11 +324,12 @@ export class ConversationService {
 
       await this.ensureCanEditConversation(conversationId, user.id);
 
-      if (
-         conversation.type === ConversationType.PERSONAL ||
-         conversation.type === ConversationType.FAVORITES
-      ) {
-         throw new BadRequestException('Нельзя изменить информацию данного диалога');
+      if (conversation.type === ConversationType.PERSONAL) {
+         throw new BadRequestException('Нельзя изменить аватар у персонального диалога');
+      }
+
+      if (conversation.type === ConversationType.FAVORITES) {
+         throw new BadRequestException('Нельзя изменить аватар у избранного');
       }
 
       if (conversation.avatar) {
@@ -330,16 +351,17 @@ export class ConversationService {
 
    public async removeConversationAvatar(user: User, input: WorkAvatarInput) {
       const { conversationId } = input;
-      
+
       await this.ensureCanEditConversation(conversationId, user.id);
 
       const conversation = await this.getConversationOrThrow(conversationId);
 
-      if (
-         conversation.type === ConversationType.PERSONAL ||
-         conversation.type === ConversationType.FAVORITES
-      ) {
-         throw new BadRequestException('Нельзя изменить информацию данного диалога');
+      if (conversation.type === ConversationType.PERSONAL) {
+         throw new BadRequestException('Нельзя удалить аватар у персонального диалога');
+      }
+
+      if (conversation.type === ConversationType.FAVORITES) {
+         throw new BadRequestException('Нельзя удалить аватар у избранного');
       }
 
       if (!conversation.avatar) {
@@ -357,6 +379,36 @@ export class ConversationService {
       });
 
       return updatedConversation;
+   }
+
+   public async findById(input: FindConversationInput, user: User) {
+      const { conversationId } = input;
+      
+      const conversation = await this.prismaService.conversation.findUnique({
+         where: { id: conversationId },
+         include: this.conversationInclude,
+      });
+
+      if (!conversation) {
+         throw new NotFoundException('Диалог не найден');
+      }
+
+      const isPublicGroupOrChannel =
+         conversation.visibility === ConversationVisibility.PUBLIC &&
+         (conversation.type === ConversationType.GROUP ||
+            conversation.type === ConversationType.CHANNEL);
+
+      if (isPublicGroupOrChannel) {
+         return conversation;
+      }
+
+      const isMember = conversation.members.some(member => member.userId === user.id);
+
+      if (!isMember) {
+         throw new NotFoundException('Диалог не найден');
+      }
+
+      return conversation;
    }
 
    private async uploadConversationAvatar(

@@ -16,6 +16,7 @@ import { ChangeConversationUsernameInput } from './inputs/change-conversation-us
 import { CreateChannelInput } from './inputs/create-channel.input';
 import { MakeGroupPublicInput } from './inputs/make-group-public.input';
 import { ConversationModel } from './models/conversation.model';
+import { FindConversationInput } from './inputs/find-conversation.input';
 
 @Resolver('Conversation')
 export class ConversationResolver {
@@ -103,5 +104,14 @@ export class ConversationResolver {
       @Args('data') input: WorkAvatarInput
    ) {
       return this.conversationService.removeConversationAvatar(user, input);
+   }
+
+   @Authorization()
+   @Query(() => ConversationModel, { name: 'findConversationById' })
+   public async findById(
+      @Args('data') input: FindConversationInput,
+      @Authorized() user: User
+   ) {
+      return this.conversationService.findById(input, user);
    }
 }
