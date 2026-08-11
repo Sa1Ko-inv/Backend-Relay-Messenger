@@ -17,6 +17,7 @@ import { CreateChannelInput } from './inputs/create-channel.input';
 import { MakeGroupPublicInput } from './inputs/make-group-public.input';
 import { ConversationModel } from './models/conversation.model';
 import { FindConversationInput } from './inputs/find-conversation.input';
+import { FindConversationUsernameInput } from './inputs/find-conversation-username.input';
 
 @Resolver('Conversation')
 export class ConversationResolver {
@@ -113,5 +114,11 @@ export class ConversationResolver {
       @Authorized() user: User
    ) {
       return this.conversationService.findById(input, user);
+   }
+
+   @Authorization()
+   @Query(() => ConversationModel, { name: 'findConversationByUsername' })
+   public async findByUsername(@Args('data') input: FindConversationUsernameInput) {
+      return this.conversationService.findByUsername(input);
    }
 }

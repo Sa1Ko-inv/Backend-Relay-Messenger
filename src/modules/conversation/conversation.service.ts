@@ -17,6 +17,7 @@ import Upload from 'graphql-upload/Upload.mjs';
 import { PrismaService } from '@/src/core/prisma/prisma.service';
 import { CreateGroupInput } from '@/src/modules/conversation/inputs/create-group.input';
 import { CreatePersonalConversationInput } from '@/src/modules/conversation/inputs/create-personal-conversation.input';
+import { FindConversationUsernameInput } from '@/src/modules/conversation/inputs/find-conversation-username.input';
 import { StorageService } from '@/src/modules/libs/storage/storage.service';
 import { generateInviteCode } from '@/src/shared/utils/generate-invite-code.utils';
 
@@ -383,7 +384,7 @@ export class ConversationService {
 
    public async findById(input: FindConversationInput, user: User) {
       const { conversationId } = input;
-      
+
       const conversation = await this.prismaService.conversation.findUnique({
          where: { id: conversationId },
          include: this.conversationInclude,
@@ -405,6 +406,32 @@ export class ConversationService {
       const isMember = conversation.members.some(member => member.userId === user.id);
 
       if (!isMember) {
+         throw new NotFoundException('Диалог не найден');
+      }
+
+      return conversation;
+   }
+
+   public async findByUsername(input: FindConversationUsernameInput) {
+      const { username } = input;
+
+      const usernameLower = username.trim().toLowerCase();
+
+      const conversation = await this.prismaService.conversation.findUnique({
+         where: { usernameLower },
+         include: this.conversationInclude,
+      });
+
+      if (!conversation) {
+         throw new NotFoundException('Диалог не найден');
+      }
+
+      const isPublicGroupOrChannel =
+         conversation.visibility === ConversationVisibility.PUBLIC &&
+         (conversation.type === ConversationType.GROUP ||
+            conversation.type === ConversationType.CHANNEL);
+
+      if (!isPublicGroupOrChannel) {
          throw new NotFoundException('Диалог не найден');
       }
 

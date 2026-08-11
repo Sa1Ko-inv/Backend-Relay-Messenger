@@ -160,6 +160,10 @@ input FindConversationInput {
   conversationId: String!
 }
 
+input FindConversationUsernameInput {
+  username: String
+}
+
 type LocationModel {
   city: String!
   country: String!
@@ -219,6 +223,7 @@ input NewPasswordInput {
 
 type Query {
   findConversationById(data: FindConversationInput!): ConversationModel!
+  findConversationByUsername(data: FindConversationUsernameInput!): ConversationModel!
   findCurrentSession: SessionModel!
   findProfile: UserModel!
   findSessionsByUser: [SessionModel!]!
